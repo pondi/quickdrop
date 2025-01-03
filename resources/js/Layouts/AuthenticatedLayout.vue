@@ -32,6 +32,12 @@ const showingNavigationDropdown = ref(false);
                                 <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
                                     Dashboard
                                 </NavLink>
+                                <NavLink :href="route('quickdrop.index')" :active="route().current('quickdrop.index')">
+                                    My QuickDrop Boxes
+                                </NavLink>
+                                <NavLink :href="route('quickdrop.create')" :active="route().current('quickdrop.create')">
+                                    Create QuickDrop Box
+                                </NavLink>
                             </div>
                         </div>
 
@@ -114,6 +120,12 @@ const showingNavigationDropdown = ref(false);
                     <div class="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">
                             Dashboard
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('quickdrop.index')" :active="route().current('quickdrop.index')">
+                            My QuickDrop Boxes
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('quickdrop.create')" :active="route().current('quickdrop.create')">
+                            Create QuickDrop Box
                         </ResponsiveNavLink>
                     </div>
 

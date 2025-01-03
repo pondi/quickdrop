@@ -56,6 +56,22 @@ return [
             'throw' => false,
         ],
 
+        'quickdrops' => [
+            'driver' => 'local',
+            'root' => storage_path('app/quickdrops'),
+            'throw' => true,
+            'permissions' => [
+                'file' => [
+                    'public' => 0644,
+                    'private' => 0600,
+                ],
+                'dir' => [
+                    'public' => 0755,
+                    'private' => 0700,
+                ],
+            ],
+        ],
+
     ],
 
     /*

@@ -100,27 +100,75 @@ class QuickDropController extends Controller
 
     public function upload(Request $request, string $unique_request_id)
     {
-        // uploadRequest is already validated and attached by middleware
-        $uploadRequest = $request->uploadRequest;
+        \Log::debug('QuickDrop: Starting upload process', [
+            'request_id' => $unique_request_id,
+            'file_name' => $request->file('file')?->getClientOriginalName(),
+            'file_size' => $request->file('file')?->getSize(),
+        ]);
+
+        $uploadRequest = UploadRequest::where('unique_request_id', $unique_request_id)
+            ->where('status', 'active')
+            ->firstOrFail();
+
+        if ($uploadRequest->isExpired()) {
+            \Log::debug('QuickDrop: Upload request expired', ['request_id' => $unique_request_id]);
+            return back()->withErrors(['error' => 'Upload request has expired']);
+        }
+
+        $request->validate([
+            'file' => ['required', 'file', function ($attribute, $value, $fail) use ($uploadRequest) {
+                if ($uploadRequest->max_file_size && $value->getSize() > $uploadRequest->max_file_size) {
+                    \Log::debug('QuickDrop: File size validation failed', [
+                        'size' => $value->getSize(),
+                        'max_size' => $uploadRequest->max_file_size
+                    ]);
+                    $fail('File size exceeds the maximum allowed size of ' . 
+                        number_format($uploadRequest->max_file_size / 1024 / 1024, 2) . ' MB');
+                }
+
+                if ($uploadRequest->allowed_mime_types && 
+                    !in_array($value->getMimeType(), $uploadRequest->allowed_mime_types)) {
+                    \Log::debug('QuickDrop: File type validation failed', [
+                        'type' => $value->getMimeType(),
+                        'allowed_types' => $uploadRequest->allowed_mime_types
+                    ]);
+                    $fail('File type not allowed. Allowed types: ' . implode(', ', $uploadRequest->allowed_mime_types));
+                }
+            }],
+            'verification_token' => ['required', 'string', function ($attribute, $value, $fail) use ($uploadRequest) {
+                if ($value !== $uploadRequest->verification_token) {
+                    \Log::debug('QuickDrop: Invalid verification token');
+                    $fail('Invalid verification token.');
+                }
+            }],
+        ]);
 
         try {
+            \Log::debug('QuickDrop: Processing file upload');
             $uploadObject = $this->quickDropService->handleFileUpload(
-                $uploadRequest, 
+                $uploadRequest,
                 $request->file('file'),
                 $uploadRequest->requesting_user_id
             );
 
-            return response()->json([
-                'message' => 'File uploaded successfully',
-                'file' => [
-                    'name' => $uploadObject->original_name,
-                    'size' => $uploadObject->file_size,
-                    'type' => $uploadObject->mime_type,
-                    'id' => $uploadObject->unique_id,
-                ],
+            \Log::debug('QuickDrop: Upload successful', [
+                'file_id' => $uploadObject->id,
+                'file_name' => $uploadObject->original_name
+            ]);
+
+            return back()->with('file', [
+                'name' => $uploadObject->original_name,
+                'size' => $uploadObject->file_size,
+                'type' => $uploadObject->mime_type,
+                'id' => $uploadObject->unique_id,
+                'uploaded_at' => $uploadObject->created_at,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 422);
+            \Log::error('QuickDrop: Upload failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
@@ -129,13 +177,13 @@ class QuickDropController extends Controller
         $uploadObject = UploadObject::with('uploadRequests')->where('unique_id', $unique_id)->firstOrFail();
 
         if (!$uploadObject->uploadRequests->contains('requesting_user_id', auth()->id())) {
-            abort(403, 'Unauthorized access to file');
+            return back()->withErrors(['error' => 'Unauthorized access to file']);
         }
 
         if ($uploadObject->is_encrypted) {
             $key = request()->input('key');
             if (!$key) {
-                return response()->json(['error' => 'Encryption key is required'], 422);
+                return back()->withErrors(['error' => 'Encryption key is required']);
             }
 
             try {
@@ -145,7 +193,7 @@ class QuickDropController extends Controller
                     'Content-Disposition' => 'attachment; filename="' . $uploadObject->original_name . '"',
                 ]);
             } catch (\Exception $e) {
-                return response()->json(['error' => 'Failed to decrypt file'], 422);
+                return back()->withErrors(['error' => 'Failed to decrypt file']);
             }
         }
 
@@ -194,10 +242,10 @@ class QuickDropController extends Controller
     protected function prepareFilesData($uploadObjects): array
     {
         return $uploadObjects->map(fn($obj) => [
+            'id' => $obj->unique_id,
             'name' => $obj->original_name,
             'size' => $obj->file_size,
             'type' => $obj->mime_type,
-            'id' => $obj->unique_id,
             'uploaded_at' => $obj->created_at,
         ])->toArray();
     }
@@ -208,7 +256,8 @@ class QuickDropController extends Controller
             'uploadRequest' => $data,
             'canViewFiles' => true,
             'showNewBoxMessage' => session('showNewBoxMessage', false),
-            'encryptionKey' => session('encryptionKey', false)
+            'encryptionKey' => session('encryptionKey', false),
+            'files' => $data['files'] ?? [],
         ]);
     }
 
@@ -218,7 +267,8 @@ class QuickDropController extends Controller
             'uploadRequest' => $data,
             'canViewFiles' => false,
             'showNewBoxMessage' => session('showNewBoxMessage', false),
-            'encryptionKey' => session('encryptionKey', false)
+            'encryptionKey' => session('encryptionKey', false),
+            'files' => [],
         ]);
     }
 
