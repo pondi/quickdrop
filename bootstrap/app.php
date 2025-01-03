@@ -11,12 +11,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Add Inertia middleware
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        //
+        // Add our custom route middleware
+        $middleware->alias([
+            'verify.token' => \App\Http\Middleware\VerifyUploadToken::class,
+            'validate.upload.size' => \App\Http\Middleware\ValidateUploadSize::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
