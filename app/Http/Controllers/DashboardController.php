@@ -18,7 +18,7 @@ class DashboardController extends Controller
         $totalUploads = UploadObject::where('owner_id', $user->id)->count();
         
         // Calculate total storage used
-        $storageUsed = UploadObject::where('owner_id', $user->id)->sum('file_size');
+        $storageUsed = (int) UploadObject::where('owner_id', $user->id)->sum('file_size');
         
         // Get active requests count
         $activeRequests = UploadRequest::where('requesting_user_id', $user->id)
