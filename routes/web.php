@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuickDropController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DownloadController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -30,7 +31,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [QuickDropController::class, 'index'])->name('index');
         Route::get('/create', [QuickDropController::class, 'create'])->name('create');
         Route::post('/', [QuickDropController::class, 'createQuickDrop'])->name('store');
-        Route::get('/file/{unique_id}', [QuickDropController::class, 'download'])->name('download');
     });
 });
 
@@ -43,6 +43,14 @@ Route::prefix('quickdrop')->name('quickdrop.')->middleware(['web'])->group(funct
     Route::post('/{unique_request_id}/upload', [QuickDropController::class, 'upload'])
         ->where('unique_request_id', '[A-Za-z0-9\-_]+')
         ->name('upload');
+});
+
+// Download routes (public but secured by request ID and file UUID)
+Route::prefix('download')->name('download.')->middleware(['web'])->group(function () {
+    Route::get('/{requestId}/{fileUuid?}', [DownloadController::class, 'download'])
+        ->where('requestId', '[A-Za-z0-9\-_]+')
+        ->where('fileUuid', '[A-Za-z0-9\-_]+|')  // Allow empty for bulk downloads
+        ->name('file');
 });
 
 // Authentication routes

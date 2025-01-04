@@ -152,6 +152,7 @@
                             :files="sortedFiles"
                             :can-download="canViewFiles"
                             @download-file="downloadFile"
+                            @download-all="downloadAllFiles"
                             :key="`file-list-${files.length}`"
                         />
 
@@ -235,32 +236,53 @@ const currentUrl = computed(() => {
 
 const downloadFile = async (file) => {
     try {
-        const response = await axios.get(
-            route('quickdrop.download', file.id),
-            { responseType: 'blob' }
-        );
+        const downloadUrl = route('download.file', {
+            requestId: uploadRequestRef.value.unique_request_id,
+            fileUuid: file.unique_id
+        });
 
-        let downloadBlob = response.data;
-        
         if (props.uploadRequest.is_encrypted) {
+            // For encrypted files, we need to download and decrypt in the browser
             const key = await getCurrentKey();
             if (!key) {
                 throw new Error('Please enter the encryption key to download files');
             }
-            downloadBlob = await decryptFile(downloadBlob, key);
-        }
 
-        const url = window.URL.createObjectURL(downloadBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', file.name);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
+            const response = await fetch(downloadUrl);
+            if (!response.ok) {
+                throw new Error(`Download failed: ${response.statusText}`);
+            }
+
+            // Check if the response is JSON (error message)
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const error = await response.json();
+                throw new Error(error.message || 'Download failed');
+            }
+
+            const blob = await response.blob();
+            const decryptedBlob = await decryptFile(blob, key);
+            
+            // Create download link
+            const url = window.URL.createObjectURL(decryptedBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = file.original_name; // Use download attribute instead of setAttribute
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+        } else {
+            // For non-encrypted files, open in a new window to bypass Inertia
+            window.open(downloadUrl, '_blank');
+        }
     } catch (error) {
         console.error('Download error:', error);
-        alert(error.message || 'Download failed');
+        alert(error.message || 'Download failed. Please try again.');
     }
 };
 
@@ -282,4 +304,26 @@ const sortedFiles = computed(() => {
         return new Date(b.uploaded_at) - new Date(a.uploaded_at);
     });
 });
+
+const downloadAllFiles = async () => {
+    try {
+        // For bulk download, don't include fileUuid parameter
+        const downloadUrl = route('download.file', {
+            requestId: uploadRequestRef.value.unique_request_id
+        });
+
+        // Log the URL for debugging
+        console.log('Bulk download URL:', downloadUrl);
+
+        // Open in a new window to bypass Inertia
+        const win = window.open(downloadUrl, '_blank');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+            // Popup was blocked, try direct location change
+            window.location.href = downloadUrl;
+        }
+    } catch (error) {
+        console.error('Bulk download error:', error);
+        alert(error.message || 'Bulk download failed. Please try again.');
+    }
+};
 </script>

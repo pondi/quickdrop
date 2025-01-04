@@ -191,8 +191,12 @@ export async function encryptFile(file, keyHex) {
  */
 export async function decryptFile(encryptedBlob, keyHex) {
     try {
+        console.log('Starting decryption process...');
+        console.log('Encrypted blob size:', encryptedBlob.size, 'bytes');
+
         // Convert hex key to Uint8Array
         const keyBytes = hexToUint8Array(keyHex);
+        console.log('Key length:', keyBytes.length, 'bytes');
         
         // Import the key
         const key = await crypto.subtle.importKey(
@@ -206,20 +210,64 @@ export async function decryptFile(encryptedBlob, keyHex) {
         // Read the encrypted data
         const encryptedData = await encryptedBlob.arrayBuffer();
         const encryptedArray = new Uint8Array(encryptedData);
+        console.log('Total encrypted data length:', encryptedArray.length, 'bytes');
         
+        if (encryptedArray.length < 16) {
+            throw new Error('Invalid encrypted data: file is too small');
+        }
+
         // Extract IV (first 12 bytes)
         const iv = encryptedArray.slice(0, 12);
+        console.log('IV length:', iv.length, 'bytes');
+        console.log('IV hex:', Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(''));
         let offset = 12;
         
-        // Extract AAD length and AAD
-        const aadLength = new DataView(encryptedArray.buffer).getUint32(offset, true);
+        // Debug the AAD length bytes
+        const aadLengthBytes = encryptedArray.slice(offset, offset + 4);
+        console.log('AAD length bytes (hex):', Array.from(aadLengthBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
+        
+        // Extract AAD length with bounds checking
+        const maxAllowedAadLength = encryptedArray.length - 16; // total - (IV + AAD length)
+        let aadLength = new DataView(encryptedArray.buffer).getUint32(offset, true);
+        
+        // Sanity check for AAD length
+        if (aadLength > maxAllowedAadLength || aadLength < 0) {
+            console.error('Invalid AAD length detected, trying big-endian...');
+            // Try reading as big-endian instead
+            aadLength = new DataView(encryptedArray.buffer).getUint32(offset, false);
+            
+            if (aadLength > maxAllowedAadLength || aadLength < 0) {
+                console.error('AAD length validation failed:', {
+                    reportedAadLength: aadLength,
+                    totalLength: encryptedArray.length,
+                    maxAllowedLength: maxAllowedAadLength,
+                    offset: offset
+                });
+                throw new Error('Invalid encrypted data: AAD length is invalid');
+            }
+        }
+        
+        console.log('AAD length:', aadLength, 'bytes');
         offset += 4;
+        
+        // Extract AAD
         const aad = encryptedArray.slice(offset, offset + aadLength);
+        console.log('Actual AAD length:', aad.length, 'bytes');
+        
+        // Try to parse AAD as UTF-8
+        try {
+            const aadText = new TextDecoder().decode(aad);
+            console.log('AAD content:', aadText);
+        } catch (e) {
+            console.log('Could not decode AAD as UTF-8');
+        }
+        
         offset += aadLength;
         
         // Extract encrypted content
         const content = encryptedArray.slice(offset);
-        
+        console.log('Content length:', content.length, 'bytes');
+
         // Decrypt the content with AAD
         const decryptedContent = await crypto.subtle.decrypt(
             {
@@ -233,11 +281,15 @@ export async function decryptFile(encryptedBlob, keyHex) {
         
         // Parse the AAD to get original file metadata
         const metadata = JSON.parse(new TextDecoder().decode(aad));
+        console.log('Successfully parsed metadata:', metadata);
         
         return new Blob([decryptedContent], { type: metadata.type });
     } catch (error) {
         console.error('Decryption error:', error);
-        throw new Error('Failed to decrypt file');
+        if (error instanceof DOMException) {
+            throw new Error(`Decryption failed: Invalid encryption key or corrupted file`);
+        }
+        throw error;
     }
 }
 

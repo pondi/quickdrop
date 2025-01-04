@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\UploadRequest;
 use App\Services\QuickDropService;
+use App\Services\DownloadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
@@ -12,12 +13,10 @@ use Inertia\Inertia;
 
 class QuickDropController extends Controller
 {
-    protected QuickDropService $quickDropService;
-
-    public function __construct(QuickDropService $quickDropService)
-    {
-        $this->quickDropService = $quickDropService;
-    }
+    public function __construct(
+        protected readonly QuickDropService $quickDropService,
+        protected readonly DownloadService $downloadService
+    ) {}
 
     public function create()
     {
@@ -225,38 +224,6 @@ class QuickDropController extends Controller
         ]);
     }
 
-    public function download(string $unique_id)
-    {
-        $uploadObject = UploadObject::with('uploadRequests')->where('unique_id', $unique_id)->firstOrFail();
-
-        if (!$uploadObject->uploadRequests->contains('requesting_user_id', auth()->id())) {
-            return back()->withErrors(['error' => 'Unauthorized access to file']);
-        }
-
-        if ($uploadObject->is_encrypted) {
-            $key = request()->input('key');
-            if (!$key) {
-                return back()->withErrors(['error' => 'Encryption key is required']);
-            }
-
-            try {
-                $content = $this->quickDropService->decryptFile($uploadObject, $key);
-                return Response::make($content, 200, [
-                    'Content-Type' => $uploadObject->mime_type,
-                    'Content-Disposition' => 'attachment; filename="' . $uploadObject->original_name . '"',
-                ]);
-            } catch (\Exception $e) {
-                return back()->withErrors(['error' => 'Failed to decrypt file']);
-            }
-        }
-
-        return Storage::disk('quickdrops')->download(
-            $uploadObject->storage_path,
-            $uploadObject->original_name,
-            ['Content-Type' => $uploadObject->mime_type]
-        );
-    }
-
     public function showQuickDrop(string $unique_request_id)
     {
         $uploadRequest = UploadRequest::where('unique_request_id', $unique_request_id)
@@ -294,8 +261,6 @@ class QuickDropController extends Controller
 
     protected function prepareFilesData($uploadObjects): array
     {
-        // Only return files that belong to this specific request
-        // And only return data that is actually needed by the frontend
         return $uploadObjects->map(fn($obj) => [
             'id' => $obj->unique_id,
             'name' => $obj->original_name,
@@ -306,7 +271,7 @@ class QuickDropController extends Controller
             'request_id' => $obj->pivot->upload_request_id,
             'uploaded_at' => $obj->created_at,
             'is_encrypted' => $obj->is_encrypted,
-            // Only send minimal metadata needed for version control
+            'unique_id' => $obj->unique_id,
             'is_latest_version' => $this->isLatestVersion($obj)
         ])->toArray();
     }
