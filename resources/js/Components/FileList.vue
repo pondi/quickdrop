@@ -14,10 +14,16 @@
         >
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
-                    <component 
-                        :is="getFileIcon(file.type)"
-                        :class="[getIconColor(file.type), 'h-8 w-8']"
-                    />
+                    <div class="relative">
+                        <component 
+                            :is="getFileIcon(file.type)"
+                            :class="[getIconColor(file.type), 'h-8 w-8']"
+                        />
+                        <LockClosedIcon 
+                            v-if="file.is_encrypted"
+                            class="absolute -top-1 -right-1 h-4 w-4 text-green-600 bg-white dark:bg-gray-700 rounded-full"
+                        />
+                    </div>
                     <div>
                         <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {{ file.name }}
@@ -47,6 +53,7 @@
 
 <script setup>
 import { PhotoIcon, DocumentIcon, DocumentTextIcon, ArrowDownTrayIcon, TableCellsIcon, MusicalNoteIcon, VideoCameraIcon } from '@heroicons/vue/24/outline';
+import { LockClosedIcon } from '@heroicons/vue/24/solid';
 import { watch, onMounted, toRefs } from 'vue';
 
 const props = defineProps({

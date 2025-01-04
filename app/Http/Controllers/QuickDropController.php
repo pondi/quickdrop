@@ -305,6 +305,7 @@ class QuickDropController extends Controller
             'file_hash' => $obj->file_hash,
             'request_id' => $obj->pivot->upload_request_id,
             'uploaded_at' => $obj->created_at,
+            'is_encrypted' => $obj->is_encrypted,
             // Only send minimal metadata needed for version control
             'is_latest_version' => $this->isLatestVersion($obj)
         ])->toArray();
