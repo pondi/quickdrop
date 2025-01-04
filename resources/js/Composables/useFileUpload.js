@@ -1,6 +1,7 @@
 import { ref, watch, computed, onBeforeUnmount } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { calculateFileHash } from '@/Services/FileHashService';
+import { encryptFile } from '@/Services/EncryptionService';
 
 export function useFileUpload(uploadRequest, encryptionKeyGetter, initialFiles = []) {
     const files = ref([...initialFiles]);
@@ -64,10 +65,7 @@ export function useFileUpload(uploadRequest, encryptionKeyGetter, initialFiles =
         if (!canUpload.value) return;
 
         const formData = new FormData();
-        formData.append('file', fileData.file);
-        formData.append('verification_token', uploadRequest.value.verification_token);
-        formData.append('file_hash', fileData.hash);
-        formData.append('next_version', fileData.nextVersion?.toString());
+        let fileToUpload = fileData.file;
 
         if (uploadRequest.value.is_encrypted) {
             const key = await encryptionKeyGetter();
@@ -75,7 +73,22 @@ export function useFileUpload(uploadRequest, encryptionKeyGetter, initialFiles =
                 fileData.error = 'Encryption key required';
                 return;
             }
+
+            try {
+                // Encrypt the file before upload
+                fileToUpload = await encryptFile(fileData.file, key);
+                console.log('File encrypted successfully:', fileData.name);
+            } catch (error) {
+                console.error('Encryption error:', error);
+                fileData.error = 'Failed to encrypt file';
+                return;
+            }
         }
+
+        formData.append('file', fileToUpload);
+        formData.append('verification_token', uploadRequest.value.verification_token);
+        formData.append('file_hash', fileData.hash);
+        formData.append('next_version', fileData.nextVersion?.toString());
 
         return new Promise((resolve, reject) => {
             const fileElement = document.querySelector(`[data-file-id="${fileData.name}"]`);

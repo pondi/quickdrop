@@ -1,60 +1,74 @@
 <template>
-    <TransitionGroup 
-        name="file-list"
-        tag="ul"
-        class="mt-4 space-y-4"
-    >
-        <li 
-            v-for="file in files" 
-            :key="file.id"
-            :class="[
-                'file-list-item bg-white dark:bg-gray-700 rounded-lg shadow p-4',
-                file.isNewUpload ? 'animate-fade-in' : ''
-            ]"
+    <div>
+        <!-- Add bulk download button if files exist and none are encrypted -->
+        <div v-if="canShowBulkDownload" class="mb-4 flex justify-end">
+            <button
+                @click="$emit('download-all')"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                type="button"
+            >
+                <ArrowDownTrayIcon class="h-5 w-5 mr-2" />
+                Download All Files (ZIP)
+            </button>
+        </div>
+
+        <TransitionGroup 
+            name="file-list"
+            tag="ul"
+            class="mt-4 space-y-4"
         >
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <div class="relative">
-                        <component 
-                            :is="getFileIcon(file.type)"
-                            :class="[getIconColor(file.type), 'h-8 w-8']"
-                        />
-                        <LockClosedIcon 
-                            v-if="file.is_encrypted"
-                            class="absolute -top-1 -right-1 h-4 w-4 text-green-600 bg-white dark:bg-gray-700 rounded-full"
-                        />
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {{ file.name }}
-                            <span v-if="file.version > 1" class="ml-2 text-xs text-blue-500">
-                                (v{{ file.version }})
-                            </span>
-                        </h4>
-                        <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
-                            <span>{{ formatFileSize(file.size) }}</span>
-                            <span>• {{ formatDate(file.uploaded_at) }}</span>
+            <li 
+                v-for="file in files" 
+                :key="file.id"
+                :class="[
+                    'file-list-item bg-white dark:bg-gray-700 rounded-lg shadow p-4',
+                    file.isNewUpload ? 'animate-fade-in' : ''
+                ]"
+            >
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <component 
+                                :is="getFileIcon(file.type)"
+                                :class="[getIconColor(file.type), 'h-8 w-8']"
+                            />
+                            <LockClosedIcon 
+                                v-if="file.is_encrypted"
+                                class="absolute -top-1 -right-1 h-4 w-4 text-green-600 bg-white dark:bg-gray-700 rounded-full"
+                            />
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {{ file.name }}
+                                <span v-if="file.version > 1" class="ml-2 text-xs text-blue-500">
+                                    (v{{ file.version }})
+                                </span>
+                            </h4>
+                            <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
+                                <span>{{ formatFileSize(file.size) }}</span>
+                                <span>• {{ formatDate(file.uploaded_at) }}</span>
+                            </div>
                         </div>
                     </div>
+                    <div class="flex space-x-2">
+                        <button
+                            v-if="canDownload"
+                            @click="$emit('download-file', file)"
+                            class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+                        >
+                            <ArrowDownTrayIcon class="h-5 w-5" />
+                        </button>
+                    </div>
                 </div>
-                <div class="flex space-x-2">
-                    <button
-                        v-if="canDownload"
-                        @click="$emit('download-file', file)"
-                        class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
-                    >
-                        <ArrowDownTrayIcon class="h-5 w-5" />
-                    </button>
-                </div>
-            </div>
-        </li>
-    </TransitionGroup>
+            </li>
+        </TransitionGroup>
+    </div>
 </template>
 
 <script setup>
 import { PhotoIcon, DocumentIcon, DocumentTextIcon, ArrowDownTrayIcon, TableCellsIcon, MusicalNoteIcon, VideoCameraIcon } from '@heroicons/vue/24/outline';
 import { LockClosedIcon } from '@heroicons/vue/24/solid';
-import { watch, onMounted, toRefs } from 'vue';
+import { watch, onMounted, toRefs, computed } from 'vue';
 
 const props = defineProps({
     files: {
@@ -65,6 +79,15 @@ const props = defineProps({
         type: Boolean,
         default: false
     }
+});
+
+// Define emits
+defineEmits(['download-file', 'download-all']);
+
+const canShowBulkDownload = computed(() => {
+    return props.canDownload && 
+           props.files.length > 1 && 
+           !props.files.some(file => file.is_encrypted);
 });
 
 const { files } = toRefs(props);
