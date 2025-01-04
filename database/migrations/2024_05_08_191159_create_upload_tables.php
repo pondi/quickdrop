@@ -22,11 +22,16 @@ return new class extends Migration
             $table->bigInteger('file_size');
             $table->string('file_extension');
             $table->string('file_hash');
+            $table->unsignedInteger('version')->default(1);
+            $table->foreignId('original_file_id')->nullable()->constrained('upload_objects')->nullOnDelete();
             $table->string('status')->default('processing');
             $table->boolean('is_encrypted')->default(false);
             $table->json('metadata')->nullable();
             $table->timestamps();
             $table->softDeletes();
+
+            // Add index for faster version lookups
+            $table->index(['original_name', 'version']);
         });
 
         Schema::create('upload_requests', function (Blueprint $table) {

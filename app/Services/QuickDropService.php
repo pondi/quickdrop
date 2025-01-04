@@ -39,35 +39,51 @@ class QuickDropService
         }
     }
 
-    public function createUploadRequest(
-        int $userId,
-        string $title,
-        ?string $comment = null,
-        ?string $referenceNumber = null,
-        int $expiresInMinutes = 1440,
-        bool $useEncryption = false,
-        ?string $keyVerificationHash = null
-    ): UploadRequest {
-        $uploadRequest = new UploadRequest();
-        $uploadRequest->requesting_user_id = $userId;
-        $uploadRequest->title = $title;
-        $uploadRequest->comment = $comment;
-        $uploadRequest->reference_number = $referenceNumber;
-        $uploadRequest->unique_request_id = Str::uuid();
-        $uploadRequest->verification_token = Str::random(64);
-        $uploadRequest->expires_at = now()->addMinutes($expiresInMinutes);
-        $uploadRequest->is_encrypted = $useEncryption;
-        $uploadRequest->key_verification_hash = $keyVerificationHash;
-        $uploadRequest->save();
-
-        return $uploadRequest;
-    }
-
     public function handleFileUpload(
         UploadRequest $request,
         UploadedFile $file,
         int $ownerId
     ): UploadObject {
+        // Calculate file hash before any processing
+        $fileHash = hash_file('sha256', $file->getRealPath());
+        
+        // Check for duplicate by hash first
+        $existingFileByHash = UploadObject::where('file_hash', $fileHash)
+            ->whereHas('uploadRequests', function ($query) use ($request) {
+                $query->where('upload_request_id', $request->id);
+            })
+            ->first();
+
+        if ($existingFileByHash) {
+            \Log::info('Duplicate file detected by hash', [
+                'original_name' => $file->getClientOriginalName(),
+                'hash' => $fileHash
+            ]);
+            return $existingFileByHash;
+        }
+
+        // Check for existing file by name
+        $existingFileByName = UploadObject::where('original_name', $file->getClientOriginalName())
+            ->whereHas('uploadRequests', function ($query) use ($request) {
+                $query->where('upload_request_id', $request->id);
+            })
+            ->orderByDesc('version')
+            ->first();
+
+        $version = 1;
+        $originalFileId = null;
+
+        if ($existingFileByName) {
+            // This is a new version of an existing file
+            $version = $existingFileByName->getNextVersion();
+            $originalFileId = $existingFileByName->original_file_id ?? $existingFileByName->id;
+            
+            \Log::info('Creating new version of file', [
+                'original_name' => $file->getClientOriginalName(),
+                'version' => $version
+            ]);
+        }
+
         $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
         $path = $request->requesting_user_id . '/' . $request->unique_request_id . '/' . $filename;
 
@@ -80,9 +96,11 @@ class QuickDropService
         $uploadObject->unique_id = Str::uuid();
         $uploadObject->file_size = $file->getSize();
         $uploadObject->file_extension = $file->getClientOriginalExtension();
-        $uploadObject->file_hash = hash_file('sha256', $file->getRealPath());
+        $uploadObject->file_hash = $fileHash;
         $uploadObject->status = 'processing';
         $uploadObject->is_encrypted = $request->is_encrypted;
+        $uploadObject->version = $version;
+        $uploadObject->original_file_id = $originalFileId;
 
         // Store the file directly since encryption is handled client-side
         Storage::disk('quickdrops')->putFileAs(
@@ -96,5 +114,45 @@ class QuickDropService
         $uploadObject->markAsComplete();
 
         return $uploadObject;
+    }
+
+    public function createUploadRequest(
+        int $userId,
+        string $title,
+        ?string $comment,
+        ?string $referenceNumber,
+        int $expiresInMinutes,
+        bool $useEncryption,
+        ?string $keyVerificationHash
+    ): UploadRequest {
+        $uploadRequest = new UploadRequest();
+        $uploadRequest->requesting_user_id = $userId;
+        $uploadRequest->title = $title;
+        $uploadRequest->comment = $comment;
+        $uploadRequest->reference_number = $referenceNumber;
+        $uploadRequest->unique_request_id = $this->generateSecureToken();
+        $uploadRequest->verification_token = $this->generateSecureToken();
+        $uploadRequest->expires_at = now()->addMinutes($expiresInMinutes);
+        $uploadRequest->is_encrypted = $useEncryption;
+        $uploadRequest->key_verification_hash = $keyVerificationHash;
+        $uploadRequest->save();
+
+        return $uploadRequest;
+    }
+
+    public function decryptFile(UploadObject $uploadObject, string $key): string
+    {
+        if (!$uploadObject->is_encrypted) {
+            throw new \Exception('File is not encrypted');
+        }
+
+        $content = Storage::disk('quickdrops')->get($uploadObject->storage_path);
+        if (!$content) {
+            throw new \Exception('Failed to read file content');
+        }
+
+        // Implement your decryption logic here
+        // This is a placeholder - you should implement proper decryption
+        return $content;
     }
 } 

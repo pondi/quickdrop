@@ -26,12 +26,15 @@ class UploadObject extends Model
         'is_encrypted',
         'status',
         'metadata',
+        'version',
+        'original_file_id',
     ];
 
     protected $casts = [
         'file_size' => 'integer',
         'is_encrypted' => 'boolean',
         'metadata' => 'array',
+        'version' => 'integer',
     ];
 
     public function owner(): BelongsTo
@@ -70,5 +73,32 @@ class UploadObject extends Model
     public function markAsFailed(): void
     {
         $this->update(['status' => 'failed']);
+    }
+
+    public function originalFile(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'original_file_id');
+    }
+
+    public function versions()
+    {
+        return $this->hasMany(self::class, 'original_file_id');
+    }
+
+    public function getLatestVersion()
+    {
+        return $this->versions()
+            ->orderByDesc('version')
+            ->first() ?? $this;
+    }
+
+    public function getNextVersion(): int
+    {
+        return ($this->versions()->max('version') ?? 0) + 1;
+    }
+
+    public function isOriginalVersion(): bool
+    {
+        return $this->original_file_id === null;
     }
 }

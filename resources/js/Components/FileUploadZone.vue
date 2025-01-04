@@ -1,37 +1,473 @@
+<template>
+    <div class="dropzone-container">
+        <div
+            @dragover.prevent="isDragging = true"
+            @dragleave.prevent="isDragging = false"
+            @drop.prevent="handleDrop"
+            class="relative"
+        >
+            <div
+                class="mt-2 flex flex-col rounded-lg border border-dashed px-6 py-6 transition-all duration-300"
+                :class="[
+                    isDragging 
+                        ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950' 
+                        : selectedFiles.length 
+                            ? 'border-gray-200 dark:border-gray-800' 
+                            : 'border-gray-900/25 dark:border-gray-700'
+                ]"
+            >
+                <!-- Empty State Upload Area -->
+                <TransitionGroup 
+                    name="fade"
+                    tag="div"
+                    class="text-center"
+                >
+                    <template v-if="!selectedFiles.length || allFilesUploaded">
+                        <PhotoIcon key="icon" class="mx-auto h-12 w-12 text-gray-300" aria-hidden="true" />
+                        <div key="upload-text" class="mt-4 flex justify-center text-sm leading-6 text-gray-600 dark:text-gray-400">
+                            <label
+                                for="file-upload"
+                                class="relative cursor-pointer rounded-md font-semibold text-indigo-600 dark:text-indigo-400 focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-600 focus-within:ring-offset-2 hover:text-indigo-500"
+                            >
+                                <span>Upload files</span>
+                                <input 
+                                    id="file-upload" 
+                                    name="file-upload" 
+                                    type="file" 
+                                    class="sr-only" 
+                                    multiple
+                                    @change="handleFileSelect"
+                                >
+                            </label>
+                            <p class="pl-1">or drag and drop</p>
+                        </div>
+                        <div key="file-info" class="mt-2 flex flex-col items-center space-y-1">
+                            <p class="text-xs leading-5 text-gray-600 dark:text-gray-400">
+                                {{ allowedTypesText }}
+                            </p>
+                            <p class="text-xs leading-5 text-gray-600 dark:text-gray-400">
+                                Max file size: {{ formatFileSize(maxFileSize) }}
+                            </p>
+                        </div>
+                    </template>
+                </TransitionGroup>
+
+                <!-- Selected Files List -->
+                <TransitionGroup 
+                    v-if="selectedFiles.length"
+                    name="file-list"
+                    tag="ul"
+                    class="divide-y divide-gray-200 dark:divide-gray-700"
+                >
+                    <li 
+                        v-for="file in selectedFiles" 
+                        :key="file.name"
+                        class="file-list-item py-3 first:pt-0 last:pb-0"
+                    >
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <component 
+                                    :is="getFileIcon(file.type)"
+                                    :class="[getIconColor(file.type), 'h-8 w-8 flex-shrink-0']"
+                                />
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                        {{ file.name }}
+                                        <span v-if="file.isDuplicateChecking" class="ml-2 text-xs text-gray-500">
+                                            (checking for duplicates...)
+                                        </span>
+                                        <span v-else-if="file.isExactDuplicate" class="ml-2 text-xs text-red-500">
+                                            (exact duplicate - will be skipped)
+                                        </span>
+                                        <span v-else-if="file.duplicateType === 'name'" class="ml-2 text-xs text-amber-500">
+                                            (will be saved as v{{ file.nextVersion }})
+                                        </span>
+                                    </h4>
+                                    <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
+                                        <span>{{ formatFileSize(file.size) }}</span>
+                                        <span v-if="file.progress !== undefined">
+                                            • {{ file.progress }}% uploaded
+                                        </span>
+                                        <span v-if="file.error" class="text-red-500">
+                                            • {{ file.error }}
+                                        </span>
+                                    </div>
+                                    <div v-if="file.progress !== undefined && file.progress < 100" class="mt-2 w-full max-w-xs">
+                                        <div class="h-1 bg-gray-200 rounded">
+                                            <div 
+                                                class="h-1 bg-indigo-600 rounded transition-all duration-300"
+                                                :style="{ width: `${file.progress}%` }"
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                v-if="!file.uploading"
+                                @click="removeFile(file)"
+                                class="text-gray-400 hover:text-gray-500 flex-shrink-0"
+                            >
+                                <XMarkIcon class="h-5 w-5" />
+                            </button>
+                        </div>
+                    </li>
+                </TransitionGroup>
+
+                <!-- Add Files Button -->
+                <TransitionGroup name="fade">
+                    <div 
+                        v-if="selectedFiles.length" 
+                        key="add-more"
+                        class="mt-4 flex justify-center"
+                    >
+                        <label
+                            for="file-upload-more"
+                            class="relative cursor-pointer rounded-md px-3 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-600 focus-within:ring-offset-2"
+                        >
+                            <span>Add more files</span>
+                            <input 
+                                id="file-upload-more" 
+                                name="file-upload-more" 
+                                type="file" 
+                                class="sr-only" 
+                                multiple
+                                @change="handleFileSelect"
+                            >
+                        </label>
+                    </div>
+                </TransitionGroup>
+            </div>
+        </div>
+    </div>
+</template>
+
 <script setup>
-import { ref, computed } from 'vue';
-import { 
-    DocumentIcon, 
-    DocumentTextIcon,
-    PhotoIcon,
-    VideoCameraIcon,
-    MusicalNoteIcon,
-    TableCellsIcon,
-    XMarkIcon,
-    PlusIcon,
-    CheckIcon,
-    ExclamationCircleIcon
-} from '@heroicons/vue/24/solid';
+import { ref, computed, watch } from 'vue';
+import { PhotoIcon, DocumentIcon, DocumentTextIcon, XMarkIcon, TableCellsIcon, MusicalNoteIcon, VideoCameraIcon } from '@heroicons/vue/24/outline';
+import { calculateFileHash } from '@/Services/FileHashService';
 
 const props = defineProps({
     allowedMimeTypes: {
         type: Array,
-        default: () => [],
+        default: () => []
     },
     maxFileSize: {
         type: Number,
-        default: null,
+        required: false,
+        default: null
     },
     completedFiles: {
         type: Array,
-        default: () => [],
+        default: () => []
+    },
+    uploadRequest: {
+        type: Object,
+        required: true
     }
 });
 
 const emit = defineEmits(['upload-files']);
 
-const dragOver = ref(false);
+const isDragging = ref(false);
 const selectedFiles = ref([]);
+const fileInput = ref(null);
+
+const allowedTypesText = computed(() => {
+    if (!props.allowedMimeTypes?.length) return 'All file types allowed';
+    
+    // Group mime types by category
+    const typeGroups = props.allowedMimeTypes.reduce((acc, type) => {
+        if (type.startsWith('image/')) acc.images = true;
+        else if (type.startsWith('application/pdf')) acc.pdf = true;
+        else if (type.includes('word')) acc.word = true;
+        else if (type.includes('excel') || type.includes('spreadsheet')) acc.excel = true;
+        else if (type.includes('zip') || type.includes('rar')) acc.archives = true;
+        else if (type === 'text/plain') acc.text = true;
+        return acc;
+    }, {});
+
+    // Convert to human-readable format
+    const types = [];
+    if (typeGroups.images) types.push('Images');
+    if (typeGroups.pdf) types.push('PDF');
+    if (typeGroups.word) types.push('Word documents');
+    if (typeGroups.excel) types.push('Excel spreadsheets');
+    if (typeGroups.archives) types.push('Archives');
+    if (typeGroups.text) types.push('Text files');
+
+    return `Allowed types: ${types.join(', ')}`;
+});
+
+const checkDuplicateStatus = (newFile) => {
+    if (import.meta.env.DEV) {
+        console.log('Checking duplicate status for:', {
+            fileName: newFile.name,
+            file_hash: newFile.file_hash,
+            requestId: props.uploadRequest.id
+        });
+
+        // Log all completed files for debugging
+        console.log('All completed files:', props.completedFiles.map(f => ({
+            name: f.name,
+            file_hash: f.file_hash,
+            request_id: f.request_id
+        })));
+    }
+
+    // Initialize result object
+    const result = {
+        isDuplicate: false,
+        isExactDuplicate: false,
+        nextVersion: undefined,
+        message: null
+    };
+
+    // First check the filelist (uploaded files)
+    const filelistMatches = props.completedFiles.filter(f => {
+        const nameMatch = f.name === newFile.name;
+        const requestMatch = String(f.request_id) === String(props.uploadRequest.id);
+        
+        if (import.meta.env.DEV) {
+            console.log('Checking file:', {
+                fileName: f.name,
+                newFileName: newFile.name,
+                nameMatch,
+                fileRequestId: f.request_id,
+                currentRequestId: props.uploadRequest.id,
+                requestMatch,
+                file_hash: f.file_hash
+            });
+        }
+        
+        return nameMatch && requestMatch;
+    });
+
+    if (import.meta.env.DEV && filelistMatches.length > 0) {
+        console.log('Found filelist matches:', {
+            fileName: newFile.name,
+            matches: filelistMatches.map(f => ({
+                name: f.name,
+                file_hash: f.file_hash,
+                request_id: f.request_id,
+                version: f.version
+            }))
+        });
+    }
+
+    // Check for exact duplicates in filelist
+    const exactDuplicateInFilelist = filelistMatches.some(f => {
+        const isMatch = f.file_hash === newFile.file_hash;
+        if (import.meta.env.DEV) {
+            console.log('Checking hash match:', {
+                fileName: f.name,
+                existingHash: f.file_hash,
+                newHash: newFile.file_hash,
+                isMatch,
+                requestId: f.request_id
+            });
+        }
+        return isMatch;
+    });
+
+    if (exactDuplicateInFilelist) {
+        result.isDuplicate = true;
+        result.isExactDuplicate = true;
+        result.message = 'Exact duplicate file already exists in uploaded files - will be skipped';
+        
+        if (import.meta.env.DEV) {
+            console.log('Found exact duplicate in filelist:', {
+                fileName: newFile.name,
+                file_hash: newFile.file_hash
+            });
+        }
+        return result;
+    }
+
+    // Then check the dropzone (only files that are already processed and not marked as duplicates)
+    const currentIndex = selectedFiles.value.indexOf(newFile);
+    
+    // Only check files that were added before this one
+    const dropzoneMatches = selectedFiles.value.filter(f => {
+        const fileIndex = selectedFiles.value.indexOf(f);
+        return f !== newFile && // Don't match with self
+               fileIndex < currentIndex && // Only check files added before this one
+               f.name === newFile.name &&
+               f.file_hash !== undefined && // Only consider files that have been processed
+               !f.isExactDuplicate && // Don't consider files that will be skipped
+               !f.error; // Don't consider files with errors
+    });
+
+    if (import.meta.env.DEV) {
+        console.log('Checking dropzone matches:', {
+            fileName: newFile.name,
+            currentIndex,
+            dropzoneMatches: dropzoneMatches.map(f => ({
+                name: f.name,
+                index: selectedFiles.value.indexOf(f),
+                file_hash: f.file_hash
+            }))
+        });
+    }
+
+    // Check for exact duplicates in dropzone
+    const exactDuplicateInDropzone = dropzoneMatches.some(f => {
+        const isMatch = f.file_hash === newFile.file_hash;
+        if (isMatch && import.meta.env.DEV) {
+            console.log('Found exact match in dropzone:', {
+                fileName: newFile.name,
+                file_hash: newFile.file_hash,
+                matching_file_hash: f.file_hash
+            });
+        }
+        return isMatch;
+    });
+
+    if (exactDuplicateInDropzone) {
+        result.isDuplicate = true;
+        result.isExactDuplicate = true;
+        result.message = 'Exact duplicate file is already in the upload list - will be skipped';
+        
+        if (import.meta.env.DEV) {
+            console.log('Found exact duplicate in dropzone:', {
+                fileName: newFile.name,
+                file_hash: newFile.file_hash
+            });
+        }
+        return result;
+    }
+
+    // If we get here, check for name duplicates and calculate next version
+    if (filelistMatches.length > 0 || dropzoneMatches.length > 0) {
+        const filelistVersions = filelistMatches.map(f => f.version || 1);
+        const dropzoneVersions = dropzoneMatches.map(f => f.nextVersion || 1);
+        const allVersions = [...filelistVersions, ...dropzoneVersions];
+        
+        result.isDuplicate = true;
+        result.nextVersion = allVersions.length > 0 ? Math.max(...allVersions) + 1 : 2;
+        result.message = `Name duplicate - will be saved as v${result.nextVersion}`;
+
+        if (import.meta.env.DEV) {
+            console.log('Found name duplicate:', {
+                fileName: newFile.name,
+                nextVersion: result.nextVersion,
+                existingVersions: allVersions
+            });
+        }
+        return result;
+    }
+
+    if (import.meta.env.DEV) {
+        console.log('No duplicates found for:', newFile.name);
+    }
+
+    return result;
+};
+
+const handleDrop = (event) => {
+    isDragging.value = false;
+    const files = Array.from(event.dataTransfer.files);
+    addFiles(files);
+};
+
+const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    addFiles(files);
+    // Safely reset the input value
+    if (event.target) {
+        event.target.value = '';
+    }
+};
+
+const addFiles = async (files) => {
+    console.log('Adding files:', {
+        fileCount: files.length,
+        currentRequestId: props.uploadRequest.id,
+        existingFiles: selectedFiles.value.length
+    });
+
+    const validFiles = files.filter(file => {
+        // Check file size
+        if (props.maxFileSize && file.size > props.maxFileSize) {
+            alert(`File ${file.name} is too large. Maximum size is ${formatFileSize(props.maxFileSize)}`);
+            return false;
+        }
+
+        // Check mime type
+        if (props.allowedMimeTypes?.length && !props.allowedMimeTypes.includes(file.type)) {
+            alert(`File type ${file.type} is not allowed. ${allowedTypesText.value}`);
+            return false;
+        }
+
+        return true;
+    });
+
+    // Process files one at a time in sequence
+    for (const file of validFiles) {
+        const fileData = {
+            file,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            progress: undefined,
+            error: undefined,
+            uploading: false,
+            file_hash: undefined,
+            nextVersion: undefined,
+            isDuplicateChecking: true,
+            isExactDuplicate: false,
+            duplicateType: null
+        };
+
+        // Add file to the list immediately to show progress
+        selectedFiles.value.push(fileData);
+
+        try {
+            // Calculate hash first
+            fileData.file_hash = await calculateFileHash(fileData.file);
+            
+            if (import.meta.env.DEV) {
+                console.log('Calculated hash for file:', {
+                    fileName: fileData.name,
+                    file_hash: fileData.file_hash
+                });
+            }
+            
+            // Check duplicate status
+            const duplicateStatus = checkDuplicateStatus(fileData);
+            
+            // Update file metadata based on duplicate status
+            fileData.isExactDuplicate = duplicateStatus.isExactDuplicate;
+            fileData.nextVersion = duplicateStatus.nextVersion;
+            fileData.error = duplicateStatus.isExactDuplicate ? duplicateStatus.message : undefined;
+            fileData.duplicateType = duplicateStatus.isDuplicate && !duplicateStatus.isExactDuplicate ? 'name' : null;
+            
+        } catch (error) {
+            console.error('Error processing file:', error);
+            fileData.error = 'Error processing file';
+        } finally {
+            fileData.isDuplicateChecking = false;
+        }
+
+        // Update the UI after each file is processed
+        selectedFiles.value = [...selectedFiles.value];
+    }
+    
+    // Only emit non-exact-duplicate files
+    emit('upload-files', selectedFiles.value.filter(f => !f.isExactDuplicate));
+};
+
+const removeFile = (file) => {
+    selectedFiles.value = selectedFiles.value.filter(f => f !== file);
+};
+
+const formatFileSize = (bytes) => {
+    if (!bytes && bytes !== 0) return 'No limit';
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+};
 
 const getFileIcon = (mimeType) => {
     if (mimeType.startsWith('image/')) return PhotoIcon;
@@ -42,234 +478,155 @@ const getFileIcon = (mimeType) => {
     return DocumentIcon;
 };
 
-const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+const getIconColor = (mimeType) => {
+    if (mimeType.startsWith('image/')) return 'text-purple-500';
+    if (mimeType.startsWith('video/')) return 'text-red-500';
+    if (mimeType.startsWith('audio/')) return 'text-pink-500';
+    if (mimeType === 'application/pdf') return 'text-red-600';
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'text-green-600';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'text-blue-600';
+    return 'text-gray-500';
 };
 
-const handleDrop = (e) => {
-    e.preventDefault();
-    dragOver.value = false;
-    addFiles(Array.from(e.dataTransfer.files));
-};
+// Computed property to check if all files are uploaded
+const allFilesUploaded = computed(() => {
+    return selectedFiles.value.length === 0 || 
+           selectedFiles.value.every(file => file.progress === 100);
+});
 
-const handleFileSelect = (e) => {
-    addFiles(Array.from(e.target.files));
-};
-
-const addFiles = (files) => {
-    console.log('FileUploadZone: Files being added:', files.length, 'files');
-    
-    const newFiles = files.map(file => {
-        const isDuplicate = props.completedFiles.some(f => f.name === file.name && f.size === file.size);
-        return {
-            file,
-            id: Math.random().toString(36).substring(7),
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            progress: 0,
-            status: 'pending',
-            error: null,
-            isDuplicate,
-            preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
-        };
-    });
-    
-    selectedFiles.value = [...selectedFiles.value, ...newFiles];
-    emit('upload-files', newFiles);
-    console.log('FileUploadZone: Total selected files:', selectedFiles.value.length);
-};
-
-const removeFile = (fileId) => {
-    const file = selectedFiles.value.find(f => f.id === fileId);
-    if (file?.preview) {
-        URL.revokeObjectURL(file.preview);
+// Watch for completed files to update UI
+watch(() => props.completedFiles, (newFiles) => {
+    if (import.meta.env.DEV) {
+        console.log('Completed files updated:', {
+            files: newFiles.map(f => ({
+                name: f.name,
+                request_id: f.request_id
+            })),
+            currentRequestId: props.uploadRequest.id
+        });
     }
-    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
-};
+}, { immediate: true, deep: true });
 
-const formatAllowedTypes = computed(() => {
-    if (!props.allowedMimeTypes?.length) return 'Any file type';
-    
-    // Convert MIME types to more readable format
-    return props.allowedMimeTypes.map(mime => {
-        if (mime.startsWith('image/')) return mime.replace('image/', '').toUpperCase() + ' images';
-        if (mime.startsWith('video/')) return mime.replace('video/', '').toUpperCase() + ' videos';
-        if (mime.startsWith('audio/')) return mime.replace('audio/', '').toUpperCase() + ' audio';
-        if (mime === 'application/pdf') return 'PDF files';
-        if (mime.includes('spreadsheet')) return 'Spreadsheets';
-        if (mime.includes('document')) return 'Documents';
-        return mime;
-    }).join(', ');
-});
-
-const formatMaxSize = computed(() => {
-    if (!props.maxFileSize) return 'unlimited size';
-    return formatFileSize(props.maxFileSize);
-});
+// Watch for completed uploads to remove files
+watch(selectedFiles, (files) => {
+    files.forEach(file => {
+        if (file.progress === 100) {
+            setTimeout(() => {
+                selectedFiles.value = selectedFiles.value.filter(f => f !== file);
+            }, 500); // Matches the animation duration
+        }
+    });
+}, { deep: true });
 </script>
 
-<template>
-    <div class="relative">
-        <!-- Main Drop Zone Container -->
-        <div
-            class="mt-4 border-2 border-dashed rounded-xl bg-white dark:bg-gray-800 transition-all duration-200"
-            :class="{ 
-                'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20': dragOver,
-                'border-gray-300 dark:border-gray-600': !dragOver 
-            }"
-        >
-            <!-- Empty State -->
-            <div v-if="selectedFiles.length === 0"
-                class="flex flex-col items-center justify-center px-6 pt-10 pb-8"
-                @dragover.prevent="dragOver = true"
-                @dragleave.prevent="dragOver = false"
-                @drop="handleDrop"
-            >
-                <div class="mx-auto h-20 w-20 text-gray-400 dark:text-gray-500">
-                    <svg
-                        class="h-full w-full"
-                        stroke="currentColor"
-                        fill="none"
-                        viewBox="0 0 48 48"
-                        aria-hidden="true"
-                    >
-                        <path
-                            d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        />
-                    </svg>
-                </div>
-                <div class="mt-4 flex flex-col items-center text-center">
-                    <p class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        Drop your files here
-                    </p>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        or
-                    </p>
-                    <label
-                        class="mt-2 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer transition-colors duration-150"
-                    >
-                        Browse Files
-                        <input
-                            type="file"
-                            class="sr-only"
-                            @change="handleFileSelect"
-                            multiple
-                        />
-                    </label>
-                    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                        {{ formatAllowedTypes }} up to {{ formatMaxSize }}
-                    </p>
-                </div>
-            </div>
+<style>
+/* Base transitions for file list */
+.file-list-enter-active,
+.file-list-leave-active {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-            <!-- Files List -->
-            <div v-else class="p-4">
-                <!-- Add More Files Section -->
-                <div class="mb-4 flex justify-between items-center">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        Selected Files
-                    </h3>
-                    <label
-                        class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer transition-colors duration-150"
-                    >
-                        <PlusIcon class="w-5 h-5 mr-1" />
-                        Add More Files
-                        <input
-                            type="file"
-                            class="sr-only"
-                            @change="handleFileSelect"
-                            multiple
-                        />
-                    </label>
-                </div>
+.file-list-enter-from {
+    opacity: 0;
+    transform: translateY(-10px);
+}
 
-                <!-- Files Grid -->
-                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <div v-for="file in selectedFiles" :key="file.id" 
-                        class="relative group flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150"
-                        :class="{ 'border-l-4 border-yellow-500': file.isDuplicate }"
-                    >
-                        <!-- Preview/Icon -->
-                        <div class="flex-shrink-0 w-10 h-10">
-                            <img v-if="file.preview" :src="file.preview" class="w-10 h-10 object-cover rounded" />
-                            <component v-else :is="getFileIcon(file.type)" 
-                                class="w-10 h-10 text-gray-400" />
-                        </div>
+.file-list-leave-to {
+    opacity: 0;
+    transform: translateY(10px);
+}
 
-                        <!-- File Info -->
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center space-x-2">
-                                <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                    {{ file.name }}
-                                </p>
-                                <span v-if="file.isDuplicate"
-                                    class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                >
-                                    Duplicate
-                                </span>
-                            </div>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ formatFileSize(file.size) }}
-                            </p>
-                            
-                            <!-- Progress Bar -->
-                            <div v-if="file.status === 'uploading'" class="mt-2">
-                                <div class="h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
-                                    <div class="h-full bg-indigo-600 dark:bg-indigo-500 transition-all duration-300"
-                                        :style="{ width: file.progress + '%' }" />
-                                </div>
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {{ file.progress }}%
-                                </p>
-                            </div>
+.file-list-move {
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-                            <!-- Error Message -->
-                            <p v-if="file.error" class="text-xs text-red-600 dark:text-red-400 mt-1">
-                                {{ file.error }}
-                            </p>
-                            
-                            <!-- Duplicate Warning -->
-                            <p v-if="file.isDuplicate" class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                                This file will replace the existing one
-                            </p>
-                        </div>
+/* Moving files animation */
+.file-list-item.moving-to-uploaded {
+    animation: move-to-filelist 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    pointer-events: none;
+}
 
-                        <!-- Remove Button (Top Right) -->
-                        <div class="absolute top-2 right-2">
-                            <button v-if="file.status === 'pending'"
-                                @click="removeFile(file.id)"
-                                class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                            >
-                                <XMarkIcon class="w-5 h-5" />
-                            </button>
-                        </div>
+@keyframes move-to-filelist {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(200%);
+        opacity: 0;
+    }
+}
 
-                        <!-- Status Indicators (Bottom Right) -->
-                        <div class="absolute bottom-2 right-2">
-                            <span v-if="file.status === 'completed'"
-                                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                            >
-                                <CheckIcon class="w-3 h-3 mr-1" />
-                                Done
-                            </span>
-                            <span v-else-if="file.status === 'error'"
-                                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                            >
-                                <ExclamationCircleIcon class="w-3 h-3 mr-1" />
-                                Error
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</template> 
+/* Upload area fade transitions - synchronized with file movements */
+.fade-enter-active {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transition-delay: 0.4s; /* Slightly shorter delay to start fading in as files are moving out */
+    max-height: 200px;
+    opacity: 1;
+    margin-top: 0;
+}
+
+.fade-leave-active {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 200px;
+    opacity: 1;
+    margin-top: 0;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+    max-height: 0;
+    margin-top: -20px;
+    transform: translateY(-10px);
+}
+
+.fade-move {
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Container transitions */
+.dropzone-container > div > div {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Ensure the container has a proper z-index context */
+.dropzone-container {
+    position: relative;
+    z-index: 10;
+}
+
+/* Ensure the file list appears below the dropzone */
+.filelist-container {
+    position: relative;
+    z-index: 5;
+}
+
+@keyframes highlight {
+    0%, 100% {
+        background-color: transparent;
+    }
+    50% {
+        background-color: rgba(79, 70, 229, 0.1);
+    }
+}
+
+.file-list-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark .file-list-item:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Adjust padding when files are present */
+.dropzone-container > div > div:has(.file-list-item) {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+/* Ensure smooth transitions for all moving elements */
+.text-center {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+</style> 

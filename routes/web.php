@@ -13,7 +13,7 @@ Route::get('/', function () {
     return redirect()->route('quickdrop.index');
 })->name('home');
 
-// Authenticated routes with rate limiting
+// Authenticated routes
 Route::middleware(['auth'])->group(function () {
     // Dashboard routes
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -29,27 +29,19 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('quickdrop')->name('quickdrop.')->group(function () {
         Route::get('/', [QuickDropController::class, 'index'])->name('index');
         Route::get('/create', [QuickDropController::class, 'create'])->name('create');
-        Route::post('/', [QuickDropController::class, 'createQuickDrop'])
-            ->middleware(['throttle:30,1'])
-            ->name('store');
-        
-        // File download - authenticated only
-        Route::get('/file/{unique_id}', [QuickDropController::class, 'download'])
-            ->middleware(['throttle:60,1'])
-            ->name('download');
+        Route::post('/', [QuickDropController::class, 'createQuickDrop'])->name('store');
+        Route::get('/file/{unique_id}', [QuickDropController::class, 'download'])->name('download');
     });
 });
 
 // Public QuickDrop routes
-Route::prefix('quickdrop')->name('quickdrop.')->middleware(['web', 'throttle:30,1'])->group(function () {
-    // View QuickDrop box
+Route::prefix('quickdrop')->name('quickdrop.')->middleware(['web'])->group(function () {
     Route::get('/{unique_request_id}', [QuickDropController::class, 'showQuickDrop'])
-        ->where('unique_request_id', '[A-Za-z0-9\-]+')
+        ->where('unique_request_id', '[A-Za-z0-9\-_]+')
         ->name('show');
     
-    // File upload endpoint
     Route::post('/{unique_request_id}/upload', [QuickDropController::class, 'upload'])
-        ->where('unique_request_id', '[A-Za-z0-9\-]+')
+        ->where('unique_request_id', '[A-Za-z0-9\-_]+')
         ->name('upload');
 });
 
