@@ -82,7 +82,11 @@ const getFileIcon = (mimeType) => {
     if (mimeType.startsWith('video/')) return VideoCameraIcon;
     if (mimeType.startsWith('audio/')) return MusicalNoteIcon;
     if (mimeType === 'application/pdf') return DocumentTextIcon;
-    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return TableCellsIcon;
+    if (mimeType.includes('spreadsheet') || 
+        mimeType.includes('excel') || 
+        mimeType === 'text/csv' ||
+        mimeType === 'application/csv' ||
+        (mimeType === 'text/plain' && props.files.find(f => f.type === mimeType)?.name?.toLowerCase().endsWith('.csv'))) return TableCellsIcon;
     return DocumentIcon;
 };
 
@@ -91,7 +95,11 @@ const getIconColor = (mimeType) => {
     if (mimeType.startsWith('video/')) return 'text-red-500';
     if (mimeType.startsWith('audio/')) return 'text-pink-500';
     if (mimeType === 'application/pdf') return 'text-red-600';
-    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'text-green-600';
+    if (mimeType.includes('spreadsheet') || 
+        mimeType.includes('excel') || 
+        mimeType === 'text/csv' ||
+        mimeType === 'application/csv' ||
+        (mimeType === 'text/plain' && props.files.find(f => f.type === mimeType)?.name?.toLowerCase().endsWith('.csv'))) return 'text-green-600';
     if (mimeType.includes('word') || mimeType.includes('document')) return 'text-blue-600';
     return 'text-gray-500';
 };
