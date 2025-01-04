@@ -128,6 +128,7 @@
                             :allowed-mime-types="uploadRequest.allowed_mime_types"
                             :max-file-size="uploadRequest.max_file_size"
                             :completed-files="files"
+                            :upload-request="uploadRequest"
                             @upload-files="handleMultipleFiles"
                         />
 
@@ -148,9 +149,10 @@
 
                         <FileList
                             v-if="files.length"
-                            :files="files"
+                            :files="sortedFiles"
                             :can-download="canViewFiles"
                             @download-file="downloadFile"
+                            :key="`file-list-${files.length}`"
                         />
 
                         <div v-if="!canViewFiles" class="mt-6 text-center text-gray-500">
@@ -176,7 +178,7 @@ import EncryptionKeyInput from '@/Components/EncryptionKeyInput.vue';
 import TimeLeft from '@/Components/TimeLeft.vue';
 import { useFileUpload } from '@/Composables/useFileUpload';
 import { useEncryptionKey } from '@/Composables/useEncryptionKey';
-import { ChevronDownIcon, ChevronUpIcon, XMarkIcon, ArrowUpTrayIcon, DocumentIcon, DocumentTextIcon, PhotoIcon, VideoCameraIcon, MusicalNoteIcon, TableCellsIcon } from '@heroicons/vue/24/solid';
+import { ChevronDownIcon, ChevronUpIcon, ArrowUpTrayIcon } from '@heroicons/vue/24/solid';
 import Notification from '@/Components/Notification.vue';
 
 const props = defineProps({
@@ -205,21 +207,17 @@ const props = defineProps({
 const isSuccessMessageExpanded = ref(true);
 const showSuccessMessage = ref(props.showNewBoxMessage);
 
-// Convert props.uploadRequest to ref for reactivity in composables
 const uploadRequestRef = ref(props.uploadRequest);
 watch(() => props.uploadRequest, (newVal) => {
     uploadRequestRef.value = newVal;
 });
 
-// Initialize encryption key management
 const { formKey, encryptionKey, initializeKey, verifyAndStoreKey, getCurrentKey } = useEncryptionKey(uploadRequestRef);
 
-// Initialize file upload management with initial files from props
 const { 
     files, 
     pendingFiles,
     isUploading, 
-    uploadProgress, 
     canUpload, 
     handleMultipleFiles,
     uploadPendingFiles 
@@ -239,9 +237,7 @@ const downloadFile = async (file) => {
     try {
         const response = await axios.get(
             route('quickdrop.download', file.id),
-            {
-                responseType: 'blob',
-            }
+            { responseType: 'blob' }
         );
 
         let downloadBlob = response.data;
@@ -281,24 +277,9 @@ const toggleSuccessMessage = () => {
     isSuccessMessageExpanded.value = !isSuccessMessageExpanded.value;
 };
 
-const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-};
-
-const getFileIcon = (mimeType) => {
-    if (mimeType.startsWith('image/')) return PhotoIcon;
-    if (mimeType.startsWith('video/')) return VideoCameraIcon;
-    if (mimeType.startsWith('audio/')) return MusicalNoteIcon;
-    if (mimeType === 'application/pdf') return DocumentTextIcon;
-    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return TableCellsIcon;
-    return DocumentIcon;
-};
-
-const removePendingFile = (file) => {
-    pendingFiles.value = pendingFiles.value.filter(f => f.name !== file.name);
-};
+const sortedFiles = computed(() => {
+    return [...files.value].sort((a, b) => {
+        return new Date(b.uploaded_at) - new Date(a.uploaded_at);
+    });
+});
 </script>

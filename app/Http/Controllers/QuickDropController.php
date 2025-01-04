@@ -104,6 +104,7 @@ class QuickDropController extends Controller
             'request_id' => $unique_request_id,
             'file_name' => $request->file('file')?->getClientOriginalName(),
             'file_size' => $request->file('file')?->getSize(),
+            'file_hash' => $request->input('file_hash')
         ]);
 
         $uploadRequest = UploadRequest::where('unique_request_id', $unique_request_id)
@@ -115,6 +116,86 @@ class QuickDropController extends Controller
             return back()->withErrors(['error' => 'Upload request has expired']);
         }
 
+        // Validate the upload request
+        $this->validateUploadRequest($request, $uploadRequest);
+
+        try {
+            $fileHash = $request->input('file_hash');
+            $fileName = $request->file('file')->getClientOriginalName();
+
+            // First check for exact duplicates (same hash AND name) within this request
+            $exactDuplicate = $uploadRequest->uploadObjects()
+                ->where('file_hash', $fileHash)
+                ->where('original_name', $fileName)
+                ->exists();
+
+            if ($exactDuplicate) {
+                \Log::info('Skipping exact duplicate file upload', [
+                    'name' => $fileName,
+                    'file_hash' => $fileHash,
+                    'request_id' => $uploadRequest->id
+                ]);
+                return response()->json([
+                    'message' => 'Exact duplicate file already exists in this request',
+                    'duplicate' => true,
+                    'type' => 'exact'
+                ], 200);
+            }
+
+            // Check for name duplicates to handle versioning
+            $existingFile = $uploadRequest->uploadObjects()
+                ->where('original_name', $fileName)
+                ->orderBy('version', 'desc')
+                ->first();
+
+            $nextVersion = 1;
+            $originalFileId = null;
+
+            if ($existingFile) {
+                $nextVersion = $existingFile->version + 1;
+                $originalFileId = $existingFile->original_file_id ?? $existingFile->id;
+
+                \Log::debug('QuickDrop: Creating new version', [
+                    'name' => $fileName,
+                    'new_version' => $nextVersion,
+                    'original_file_id' => $originalFileId,
+                    'request_id' => $uploadRequest->id
+                ]);
+            }
+
+            $uploadObject = $this->quickDropService->handleFileUpload(
+                $uploadRequest,
+                $request->file('file'),
+                $uploadRequest->requesting_user_id,
+                $nextVersion,
+                $originalFileId
+            );
+
+            // Return the file data with version information
+            return back()->with('file', [
+                'id' => $uploadObject->unique_id,
+                'name' => $uploadObject->original_name,
+                'size' => $uploadObject->file_size,
+                'type' => $uploadObject->mime_type,
+                'version' => $uploadObject->version,
+                'file_hash' => $uploadObject->file_hash,
+                'request_id' => $uploadRequest->id,
+                'uploaded_at' => $uploadObject->created_at,
+                'is_latest_version' => $this->isLatestVersion($uploadObject),
+                'is_duplicate' => $existingFile !== null,
+                'duplicate_type' => $existingFile ? 'name' : null
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('QuickDrop: Upload failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    protected function validateUploadRequest(Request $request, UploadRequest $uploadRequest)
+    {
         $request->validate([
             'file' => ['required', 'file', function ($attribute, $value, $fail) use ($uploadRequest) {
                 if ($uploadRequest->max_file_size && $value->getSize() > $uploadRequest->max_file_size) {
@@ -142,34 +223,6 @@ class QuickDropController extends Controller
                 }
             }],
         ]);
-
-        try {
-            \Log::debug('QuickDrop: Processing file upload');
-            $uploadObject = $this->quickDropService->handleFileUpload(
-                $uploadRequest,
-                $request->file('file'),
-                $uploadRequest->requesting_user_id
-            );
-
-            \Log::debug('QuickDrop: Upload successful', [
-                'file_id' => $uploadObject->id,
-                'file_name' => $uploadObject->original_name
-            ]);
-
-            return back()->with('file', [
-                'name' => $uploadObject->original_name,
-                'size' => $uploadObject->file_size,
-                'type' => $uploadObject->mime_type,
-                'id' => $uploadObject->unique_id,
-                'uploaded_at' => $uploadObject->created_at,
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('QuickDrop: Upload failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
     }
 
     public function download(string $unique_id)
@@ -231,9 +284,9 @@ class QuickDropController extends Controller
             'expires_at' => $uploadRequest->expires_at,
             'is_expired' => $uploadRequest->isExpired(),
             'is_active' => $uploadRequest->isActive(),
-            'max_file_size' => $uploadRequest->max_file_size,
-            'max_files' => $uploadRequest->max_files,
-            'allowed_mime_types' => $uploadRequest->allowed_mime_types,
+            'max_file_size' => $uploadRequest->max_file_size ?? config('quickdrop.max_file_size'),
+            'max_files' => $uploadRequest->max_files ?? config('quickdrop.max_files'),
+            'allowed_mime_types' => $uploadRequest->allowed_mime_types ?? config('quickdrop.allowed_mime_types'),
             'is_encrypted' => $uploadRequest->is_encrypted,
             'key_verification_hash' => $uploadRequest->key_verification_hash,
         ];
@@ -241,13 +294,29 @@ class QuickDropController extends Controller
 
     protected function prepareFilesData($uploadObjects): array
     {
+        // Only return files that belong to this specific request
+        // And only return data that is actually needed by the frontend
         return $uploadObjects->map(fn($obj) => [
             'id' => $obj->unique_id,
             'name' => $obj->original_name,
             'size' => $obj->file_size,
             'type' => $obj->mime_type,
+            'version' => $obj->version,
+            'file_hash' => $obj->file_hash,
+            'request_id' => $obj->pivot->upload_request_id,
             'uploaded_at' => $obj->created_at,
+            // Only send minimal metadata needed for version control
+            'is_latest_version' => $this->isLatestVersion($obj)
         ])->toArray();
+    }
+
+    protected function isLatestVersion($uploadObject): bool
+    {
+        // Only check versions within the same request
+        return !$uploadObject->original_file_id || 
+            ($uploadObject->version >= $uploadObject->uploadRequest->uploadObjects()
+                ->where('original_name', $uploadObject->original_name)
+                ->max('version'));
     }
 
     protected function renderOwnerView(array $data)
