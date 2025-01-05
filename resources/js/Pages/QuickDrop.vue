@@ -263,11 +263,11 @@ const downloadFile = async (file) => {
             const blob = await response.blob();
             const decryptedBlob = await decryptFile(blob, key);
             
-            // Create download link
+            // Create download link with original filename
             const url = window.URL.createObjectURL(decryptedBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = file.original_name; // Use download attribute instead of setAttribute
+            link.download = file.original_name || file.name || 'download';
             document.body.appendChild(link);
             link.click();
             

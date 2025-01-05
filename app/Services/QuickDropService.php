@@ -122,19 +122,25 @@ class QuickDropService
         ?string $comment,
         ?string $referenceNumber,
         int $expiresInMinutes,
-        bool $useEncryption,
-        ?string $keyVerificationHash
+        bool $useEncryption = false,
+        ?string $keyVerificationHash = null,
+        bool $allowPublicDownload = false,
+        bool $allowPublicDelete = false,
+        bool $allowPublicUpload = true
     ): UploadRequest {
         $uploadRequest = new UploadRequest();
         $uploadRequest->requesting_user_id = $userId;
         $uploadRequest->title = $title;
         $uploadRequest->comment = $comment;
         $uploadRequest->reference_number = $referenceNumber;
-        $uploadRequest->unique_request_id = $this->generateSecureToken();
-        $uploadRequest->verification_token = $this->generateSecureToken();
         $uploadRequest->expires_at = now()->addMinutes($expiresInMinutes);
+        $uploadRequest->unique_request_id = Str::uuid();
+        $uploadRequest->verification_token = Str::random(64);
         $uploadRequest->is_encrypted = $useEncryption;
         $uploadRequest->key_verification_hash = $keyVerificationHash;
+        $uploadRequest->allow_public_download = $allowPublicDownload;
+        $uploadRequest->allow_public_delete = $allowPublicDelete;
+        $uploadRequest->allow_public_upload = $allowPublicUpload;
         $uploadRequest->save();
 
         return $uploadRequest;

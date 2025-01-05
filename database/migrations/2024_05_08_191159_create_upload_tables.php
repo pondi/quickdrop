@@ -46,6 +46,9 @@ return new class extends Migration
             $table->string('status')->default('active');
             $table->boolean('is_encrypted')->default(false);
             $table->string('key_verification_hash')->nullable();
+            $table->boolean('allow_public_download')->default(false);
+            $table->boolean('allow_public_delete')->default(false);
+            $table->boolean('allow_public_upload')->default(true);
             $table->timestamps();
             $table->softDeletes();
 
