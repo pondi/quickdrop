@@ -49,7 +49,10 @@ class QuickDropController extends Controller
                 $request->input('reference_number'),
                 $request->input('expires_in_minutes', 1440),
                 $request->input('use_encryption', false),
-                $request->input('key_verification_hash')
+                $request->input('key_verification_hash'),
+                $request->input('allow_public_download', false),
+                $request->input('allow_public_delete', false),
+                $request->input('allow_public_upload', true)
             );
 
             return to_route('quickdrop.show', [
@@ -92,6 +95,9 @@ class QuickDropController extends Controller
             'expires_in_minutes' => 'nullable|integer|min:5|max:' . collect(config('quickdrop.expiration_options'))->max('value'),
             'use_encryption' => 'nullable|boolean',
             'key_verification_hash' => 'required_if:use_encryption,true|nullable|string',
+            'allow_public_download' => 'boolean',
+            'allow_public_delete' => 'boolean',
+            'allow_public_upload' => 'boolean',
         ], [
             'reference_number.regex' => config('quickdrop.reference_number.validation.error_message'),
         ]);
@@ -243,7 +249,8 @@ class QuickDropController extends Controller
 
     protected function prepareUploadRequestData(UploadRequest $uploadRequest): array
     {
-        return [
+        $isOwner = auth()->check() && auth()->id() === $uploadRequest->requesting_user_id;
+        $data = [
             'id' => $uploadRequest->id,
             'unique_request_id' => $uploadRequest->unique_request_id,
             'title' => $uploadRequest->title,
@@ -257,6 +264,18 @@ class QuickDropController extends Controller
             'is_encrypted' => $uploadRequest->is_encrypted,
             'key_verification_hash' => $uploadRequest->key_verification_hash,
         ];
+
+        if ($isOwner) {
+            $data['allow_public_download'] = $uploadRequest->allow_public_download;
+            $data['allow_public_delete'] = $uploadRequest->allow_public_delete;
+            $data['allow_public_upload'] = $uploadRequest->allow_public_upload;
+        } else {
+            $data['can_download'] = $uploadRequest->allow_public_download;
+            $data['can_delete'] = $uploadRequest->allow_public_delete;
+            $data['can_upload'] = $uploadRequest->allow_public_upload;
+        }
+
+        return $data;
     }
 
     protected function prepareFilesData($uploadObjects): array
@@ -268,6 +287,7 @@ class QuickDropController extends Controller
             'type' => $obj->mime_type,
             'version' => $obj->version,
             'file_hash' => $obj->file_hash,
+            'hash' => $obj->file_hash,
             'request_id' => $obj->pivot->upload_request_id,
             'uploaded_at' => $obj->created_at,
             'is_encrypted' => $obj->is_encrypted,
@@ -298,12 +318,20 @@ class QuickDropController extends Controller
 
     protected function renderPublicView(array $data)
     {
+        $files = [];
+        if ($data['can_download'] ?? false) {
+            $uploadRequest = UploadRequest::where('unique_request_id', $data['unique_request_id'])
+                ->with('uploadObjects')
+                ->firstOrFail();
+            $files = $this->prepareFilesData($uploadRequest->uploadObjects);
+        }
+
         return Inertia::render('PublicQuickDrop', [
             'uploadRequest' => $data,
             'canViewFiles' => false,
             'showNewBoxMessage' => session('showNewBoxMessage', false),
             'encryptionKey' => session('encryptionKey', false),
-            'files' => [],
+            'files' => $files,
         ]);
     }
 

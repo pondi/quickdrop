@@ -27,6 +27,9 @@ const form = useForm({
     expires_in_minutes: props.config.defaults.expires_in_minutes,
     use_encryption: false,
     key_verification_hash: null,
+    allow_public_download: false,
+    allow_public_delete: false,
+    allow_public_upload: true,
 });
 
 const commonMimeTypes = computed(() => props.config.allowed_mime_types);
@@ -165,6 +168,47 @@ const copyToClipboard = async (text) => {
                                 <label for="use_encryption" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
                                     Enable End-to-End Encryption
                                 </label>
+                            </div>
+
+                            <!-- Public User Permissions -->
+                            <div class="space-y-4 border-t pt-4 mt-4">
+                                <h3 class="text-md font-medium">Public User Permissions</h3>
+                                
+                                <div class="flex items-center">
+                                    <input
+                                        v-model="form.allow_public_upload"
+                                        id="allow_public_upload"
+                                        type="checkbox"
+                                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                    />
+                                    <label for="allow_public_upload" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
+                                        Allow Public Users to Upload Files
+                                    </label>
+                                </div>
+
+                                <div class="flex items-center">
+                                    <input
+                                        v-model="form.allow_public_download"
+                                        id="allow_public_download"
+                                        type="checkbox"
+                                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                    />
+                                    <label for="allow_public_download" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
+                                        Allow Public Users to Download Files
+                                    </label>
+                                </div>
+
+                                <div class="flex items-center">
+                                    <input
+                                        v-model="form.allow_public_delete"
+                                        id="allow_public_delete"
+                                        type="checkbox"
+                                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                    />
+                                    <label for="allow_public_delete" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
+                                        Allow Public Users to Delete Files
+                                    </label>
+                                </div>
                             </div>
 
                             <div class="flex items-center justify-end mt-6">

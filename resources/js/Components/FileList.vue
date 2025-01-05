@@ -1,18 +1,25 @@
 <template>
-    <div>
-        <!-- Add bulk download button if files exist and none are encrypted -->
-        <div v-if="canShowBulkDownload" class="mb-4 flex justify-end">
-            <button
-                @click="$emit('download-all')"
-                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                type="button"
-            >
-                <ArrowDownTrayIcon class="h-5 w-5 mr-2" />
-                Download All Files (ZIP)
-            </button>
+    <div class="mt-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-medium">Uploaded Files ({{ files.length }})</h3>
+            <div class="flex items-center space-x-4" v-if="canShowBulkDownload">
+                <button
+                    @click="$emit('download-all')"
+                    class="inline-flex items-center px-4 py-2 bg-indigo-600 dark:bg-indigo-500 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 dark:hover:bg-indigo-600 focus:bg-indigo-700 dark:focus:bg-indigo-600 active:bg-indigo-900 dark:active:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150"
+                >
+                    <ArrowDownTrayIcon class="w-4 h-4 mr-2" />
+                    Download All as ZIP
+                    <span class="ml-1 text-xs opacity-75">({{ formatTotalSize }})</span>
+                </button>
+            </div>
+        </div>
+
+        <div v-if="files.length === 0" class="text-center text-gray-500 py-8">
+            No files have been uploaded yet.
         </div>
 
         <TransitionGroup 
+            v-else
             name="file-list"
             tag="ul"
             class="mt-4 space-y-4"
@@ -78,15 +85,44 @@ const props = defineProps({
     canDownload: {
         type: Boolean,
         default: false
+    },
+    canDelete: {
+        type: Boolean,
+        default: false
     }
 });
 
 // Define emits
 defineEmits(['download-file', 'download-all']);
 
+// Debug logging
+if (import.meta.env.DEV) {
+    onMounted(() => {
+        console.log('FileList mounted:', {
+            files: props.files,
+            canDownload: props.canDownload,
+            canDelete: props.canDelete
+        });
+    });
+
+    watch([() => props.files, () => props.canDownload], ([newFiles, newCanDownload]) => {
+        console.log('FileList props changed:', {
+            filesLength: newFiles.length,
+            canDownload: newCanDownload
+        });
+    }, { immediate: true, deep: true });
+}
+
 const canShowBulkDownload = computed(() => {
+    // Debug log for visibility
+    console.log('canShowBulkDownload computed:', {
+        canDownload: props.canDownload,
+        filesLength: props.files.length,
+        hasEncryptedFiles: props.files.some(file => file.is_encrypted)
+    });
+    
     return props.canDownload && 
-           props.files.length > 1 && 
+           props.files.length > 0 && 
            !props.files.some(file => file.is_encrypted);
 });
 
@@ -145,6 +181,17 @@ const formatFileSize = (bytes) => {
 const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
 };
+
+const formatTotalSize = computed(() => {
+    const totalBytes = props.files.reduce((acc, file) => acc + file.size, 0);
+    if (totalBytes === 0) return '0 B';
+    
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(totalBytes) / Math.log(k));
+    
+    return parseFloat((totalBytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+});
 </script>
 
 <style>
