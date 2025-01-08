@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Storage;
 
 class UploadObject extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'owner_id',
@@ -31,10 +32,10 @@ class UploadObject extends Model
     ];
 
     protected $casts = [
-        'file_size' => 'integer',
+        'file_size'    => 'integer',
         'is_encrypted' => 'boolean',
-        'metadata' => 'array',
-        'version' => 'integer',
+        'metadata'     => 'array',
+        'version'      => 'integer',
     ];
 
     public function owner(): BelongsTo
@@ -56,7 +57,7 @@ class UploadObject extends Model
     {
         // Delete the physical file
         Storage::disk('quickdrops')->delete($this->storage_path);
-        
+
         return parent::delete();
     }
 

@@ -12,7 +12,8 @@ class DownloadController extends Controller
 {
     public function __construct(
         private readonly DownloadService $downloadService
-    ) {}
+    ) {
+    }
 
     public function download(Request $request, string $requestId, ?string $fileUuid = null)
     {
@@ -34,26 +35,25 @@ class DownloadController extends Controller
 
             // Prevent timeout for large files
             set_time_limit(0);
-            
-            return $this->downloadService->getDownloadResponse($uploadRequest, $fileUuid);
 
+            return $this->downloadService->getDownloadResponse($uploadRequest, $fileUuid);
         } catch (RuntimeException $e) {
-            Log::warning('Download failed: ' . $e->getMessage(), [
+            Log::warning('Download failed: '.$e->getMessage(), [
                 'requestId' => $requestId,
-                'fileUuid' => $fileUuid,
-                'error' => $e->getMessage()
+                'fileUuid'  => $fileUuid,
+                'error'     => $e->getMessage(),
             ]);
-            
+
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
-            Log::error('Download error: ' . $e->getMessage(), [
+            Log::error('Download error: '.$e->getMessage(), [
                 'requestId' => $requestId,
-                'fileUuid' => $fileUuid,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'fileUuid'  => $fileUuid,
+                'error'     => $e->getMessage(),
+                'trace'     => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json(['message' => 'Download failed. Please try again.'], 500);
         }
     }
-} 
+}
