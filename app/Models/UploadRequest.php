@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
 
 class UploadRequest extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'requesting_user_id',
@@ -27,10 +27,10 @@ class UploadRequest extends Model
     ];
 
     protected $casts = [
-        'expires_at' => 'datetime',
+        'expires_at'         => 'datetime',
         'allowed_mime_types' => 'array',
-        'max_file_size' => 'integer',
-        'max_files' => 'integer',
+        'max_file_size'      => 'integer',
+        'max_files'          => 'integer',
     ];
 
     public function requestingUser(): BelongsTo

@@ -25,10 +25,10 @@ class QuickDropController extends Controller
             'config' => [
                 'allowed_mime_types' => config('quickdrop.allowed_mime_types'),
                 'expiration_options' => config('quickdrop.expiration_options'),
-                'file_size_options' => config('quickdrop.file_size_options'),
-                'max_files_options' => config('quickdrop.max_files_options'),
-                'defaults' => config('quickdrop.defaults'),
-                'reference_number' => config('quickdrop.reference_number'),
+                'file_size_options'  => config('quickdrop.file_size_options'),
+                'max_files_options'  => config('quickdrop.max_files_options'),
+                'defaults'           => config('quickdrop.defaults'),
+                'reference_number'   => config('quickdrop.reference_number'),
             ],
         ]);
     }
@@ -57,12 +57,12 @@ class QuickDropController extends Controller
                 'unique_request_id' => $uploadRequest->unique_request_id,
             ])->with([
                 'uploadRequest' => [
-                    'id' => $uploadRequest->id,
+                    'id'                => $uploadRequest->id,
                     'unique_request_id' => $uploadRequest->unique_request_id,
-                    'is_encrypted' => $request->input('use_encryption', false),
+                    'is_encrypted'      => $request->input('use_encryption', false),
                 ],
                 'showNewBoxMessage' => true,
-                'encryptionKey' => $request->input('use_encryption', false)
+                'encryptionKey'     => $request->input('use_encryption', false),
             ]);
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to create QuickDrop box']);
@@ -78,20 +78,20 @@ class QuickDropController extends Controller
         return [
             config('quickdrop.reference_number.required') ? 'required' : 'nullable',
             'string',
-            'min:' . config('quickdrop.reference_number.validation.min_length'),
-            'max:' . config('quickdrop.reference_number.validation.max_length'),
-            'regex:/' . config('quickdrop.reference_number.validation.pattern') . '/',
+            'min:'.config('quickdrop.reference_number.validation.min_length'),
+            'max:'.config('quickdrop.reference_number.validation.max_length'),
+            'regex:/'.config('quickdrop.reference_number.validation.pattern').'/',
         ];
     }
 
     protected function createValidator(Request $request, array $referenceValidation)
     {
         return Validator::make($request->all(), [
-            'title' => 'required|string|max:255',
-            'comment' => 'nullable|string|max:1000',
-            'reference_number' => $referenceValidation,
-            'expires_in_minutes' => 'nullable|integer|min:5|max:' . collect(config('quickdrop.expiration_options'))->max('value'),
-            'use_encryption' => 'nullable|boolean',
+            'title'                 => 'required|string|max:255',
+            'comment'               => 'nullable|string|max:1000',
+            'reference_number'      => $referenceValidation,
+            'expires_in_minutes'    => 'nullable|integer|min:5|max:'.collect(config('quickdrop.expiration_options'))->max('value'),
+            'use_encryption'        => 'nullable|boolean',
             'key_verification_hash' => 'required_if:use_encryption,true|nullable|string',
         ], [
             'reference_number.regex' => config('quickdrop.reference_number.validation.error_message'),
@@ -105,18 +105,18 @@ class QuickDropController extends Controller
 
         try {
             $uploadObject = $this->quickDropService->handleFileUpload(
-                $uploadRequest, 
+                $uploadRequest,
                 $request->file('file'),
                 $uploadRequest->requesting_user_id
             );
 
             return response()->json([
                 'message' => 'File uploaded successfully',
-                'file' => [
+                'file'    => [
                     'name' => $uploadObject->original_name,
                     'size' => $uploadObject->file_size,
                     'type' => $uploadObject->mime_type,
-                    'id' => $uploadObject->unique_id,
+                    'id'   => $uploadObject->unique_id,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -140,9 +140,10 @@ class QuickDropController extends Controller
 
             try {
                 $content = $this->quickDropService->decryptFile($uploadObject, $key);
+
                 return Response::make($content, 200, [
-                    'Content-Type' => $uploadObject->mime_type,
-                    'Content-Disposition' => 'attachment; filename="' . $uploadObject->original_name . '"',
+                    'Content-Type'        => $uploadObject->mime_type,
+                    'Content-Disposition' => 'attachment; filename="'.$uploadObject->original_name.'"',
                 ]);
             } catch (\Exception $e) {
                 return response()->json(['error' => 'Failed to decrypt file'], 422);
@@ -167,6 +168,7 @@ class QuickDropController extends Controller
 
         if ($isOwner) {
             $data['files'] = $this->prepareFilesData($uploadRequest->uploadObjects);
+
             return $this->renderOwnerView($data);
         }
 
@@ -176,28 +178,28 @@ class QuickDropController extends Controller
     protected function prepareUploadRequestData(UploadRequest $uploadRequest): array
     {
         return [
-            'id' => $uploadRequest->id,
-            'unique_request_id' => $uploadRequest->unique_request_id,
-            'title' => $uploadRequest->title,
-            'verification_token' => $uploadRequest->verification_token,
-            'expires_at' => $uploadRequest->expires_at,
-            'is_expired' => $uploadRequest->isExpired(),
-            'is_active' => $uploadRequest->isActive(),
-            'max_file_size' => $uploadRequest->max_file_size,
-            'max_files' => $uploadRequest->max_files,
-            'allowed_mime_types' => $uploadRequest->allowed_mime_types,
-            'is_encrypted' => $uploadRequest->is_encrypted,
+            'id'                    => $uploadRequest->id,
+            'unique_request_id'     => $uploadRequest->unique_request_id,
+            'title'                 => $uploadRequest->title,
+            'verification_token'    => $uploadRequest->verification_token,
+            'expires_at'            => $uploadRequest->expires_at,
+            'is_expired'            => $uploadRequest->isExpired(),
+            'is_active'             => $uploadRequest->isActive(),
+            'max_file_size'         => $uploadRequest->max_file_size,
+            'max_files'             => $uploadRequest->max_files,
+            'allowed_mime_types'    => $uploadRequest->allowed_mime_types,
+            'is_encrypted'          => $uploadRequest->is_encrypted,
             'key_verification_hash' => $uploadRequest->key_verification_hash,
         ];
     }
 
     protected function prepareFilesData($uploadObjects): array
     {
-        return $uploadObjects->map(fn($obj) => [
-            'name' => $obj->original_name,
-            'size' => $obj->file_size,
-            'type' => $obj->mime_type,
-            'id' => $obj->unique_id,
+        return $uploadObjects->map(fn ($obj) => [
+            'name'        => $obj->original_name,
+            'size'        => $obj->file_size,
+            'type'        => $obj->mime_type,
+            'id'          => $obj->unique_id,
             'uploaded_at' => $obj->created_at,
         ])->toArray();
     }
@@ -205,20 +207,20 @@ class QuickDropController extends Controller
     protected function renderOwnerView(array $data)
     {
         return Inertia::render('QuickDrop', [
-            'uploadRequest' => $data,
-            'canViewFiles' => true,
+            'uploadRequest'     => $data,
+            'canViewFiles'      => true,
             'showNewBoxMessage' => session('showNewBoxMessage', false),
-            'encryptionKey' => session('encryptionKey', false)
+            'encryptionKey'     => session('encryptionKey', false),
         ]);
     }
 
     protected function renderPublicView(array $data)
     {
         return Inertia::render('PublicQuickDrop', [
-            'uploadRequest' => $data,
-            'canViewFiles' => false,
+            'uploadRequest'     => $data,
+            'canViewFiles'      => false,
             'showNewBoxMessage' => session('showNewBoxMessage', false),
-            'encryptionKey' => session('encryptionKey', false)
+            'encryptionKey'     => session('encryptionKey', false),
         ]);
     }
 
@@ -228,29 +230,29 @@ class QuickDropController extends Controller
             ->with('uploadObjects')
             ->latest()
             ->get()
-            ->map(fn($request) => $this->prepareUploadRequestListData($request));
+            ->map(fn ($request) => $this->prepareUploadRequestListData($request));
 
         return Inertia::render('QuickDropList', [
-            'uploadRequests' => $uploadRequests
+            'uploadRequests' => $uploadRequests,
         ]);
     }
 
     protected function prepareUploadRequestListData(UploadRequest $request): array
     {
         return [
-            'id' => $request->unique_request_id,
-            'title' => $request->title,
-            'created_at' => $request->created_at,
-            'expires_at' => $request->expires_at,
-            'is_expired' => $request->isExpired(),
-            'is_active' => $request->isActive(),
-            'max_file_size' => $request->max_file_size,
-            'max_files' => $request->max_files,
+            'id'                 => $request->unique_request_id,
+            'title'              => $request->title,
+            'created_at'         => $request->created_at,
+            'expires_at'         => $request->expires_at,
+            'is_expired'         => $request->isExpired(),
+            'is_active'          => $request->isActive(),
+            'max_file_size'      => $request->max_file_size,
+            'max_files'          => $request->max_files,
             'allowed_mime_types' => $request->allowed_mime_types,
-            'is_encrypted' => $request->is_encrypted,
-            'files_count' => $request->uploadObjects->count(),
-            'total_size' => $request->uploadObjects->sum('file_size'),
-            'upload_url' => route('quickdrop.show', ['unique_request_id' => $request->unique_request_id]),
+            'is_encrypted'       => $request->is_encrypted,
+            'files_count'        => $request->uploadObjects->count(),
+            'total_size'         => $request->uploadObjects->sum('file_size'),
+            'upload_url'         => route('quickdrop.show', ['unique_request_id' => $request->unique_request_id]),
         ];
     }
 }

@@ -1,11 +1,10 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\QuickDropController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DownloadController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\QuickDropController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 // All routes are automatically in the 'web' middleware group from RouteServiceProvider
 
@@ -39,7 +38,7 @@ Route::prefix('quickdrop')->name('quickdrop.')->middleware(['web'])->group(funct
     Route::get('/{unique_request_id}', [QuickDropController::class, 'showQuickDrop'])
         ->where('unique_request_id', '[A-Za-z0-9\-_]+')
         ->name('show');
-    
+
     Route::post('/{unique_request_id}/upload', [QuickDropController::class, 'upload'])
         ->where('unique_request_id', '[A-Za-z0-9\-_]+')
         ->name('upload');
