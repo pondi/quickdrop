@@ -68,7 +68,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import QuickDropGuestLayout from '@/Layouts/QuickDropGuestLayout.vue';
+import GuestLayout from '@/Layouts/GuestLayout.vue';
 import axios from 'axios';
 import { decryptFile } from '@/Services/EncryptionService';
 import FileUploadZone from '@/Components/FileUploadZone.vue';
