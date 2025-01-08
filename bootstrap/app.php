@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Add our custom route middleware
         $middleware->alias([
-            'verify.token' => \App\Http\Middleware\VerifyUploadToken::class,
+            'verify.token'         => \App\Http\Middleware\VerifyUploadToken::class,
             'validate.upload.size' => \App\Http\Middleware\ValidateUploadSize::class,
         ]);
     })

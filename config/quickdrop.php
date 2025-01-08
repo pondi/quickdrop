@@ -9,8 +9,8 @@ return [
     | These settings apply to all QuickDrop boxes.
     |
     */
-    'max_file_size' => env('QUICKDROP_MAX_FILE_SIZE', 1073741824), // 1GB
-    'max_files' => env('QUICKDROP_MAX_FILES', 100),
+    'max_file_size'      => env('QUICKDROP_MAX_FILE_SIZE', 1073741824), // 1GB
+    'max_files'          => env('QUICKDROP_MAX_FILES', 100),
     'allowed_mime_types' => [
         'application/pdf',
         'application/msword',
@@ -52,14 +52,14 @@ return [
     |
     */
     'reference_number' => [
-        'enabled' => env('QUICKDROP_REFERENCE_ENABLED', false),
-        'label' => env('QUICKDROP_REFERENCE_LABEL', 'Reference Number'),
-        'help_text' => env('QUICKDROP_REFERENCE_HELP', 'Enter a reference number (e.g., PO number, invoice number)'),
-        'required' => env('QUICKDROP_REFERENCE_REQUIRED', true),
+        'enabled'    => env('QUICKDROP_REFERENCE_ENABLED', false),
+        'label'      => env('QUICKDROP_REFERENCE_LABEL', 'Reference Number'),
+        'help_text'  => env('QUICKDROP_REFERENCE_HELP', 'Enter a reference number (e.g., PO number, invoice number)'),
+        'required'   => env('QUICKDROP_REFERENCE_REQUIRED', true),
         'validation' => [
-            'pattern' => env('QUICKDROP_REFERENCE_PATTERN', '^[A-Za-z0-9-]{3,50}$'),
-            'min_length' => env('QUICKDROP_REFERENCE_MIN_LENGTH', 3),
-            'max_length' => env('QUICKDROP_REFERENCE_MAX_LENGTH', 50),
+            'pattern'       => env('QUICKDROP_REFERENCE_PATTERN', '^[A-Za-z0-9-]{3,50}$'),
+            'min_length'    => env('QUICKDROP_REFERENCE_MIN_LENGTH', 3),
+            'max_length'    => env('QUICKDROP_REFERENCE_MAX_LENGTH', 50),
             'error_message' => env('QUICKDROP_REFERENCE_ERROR_MESSAGE', 'Reference number must be 3-50 characters long and can only contain letters, numbers, and hyphens.'),
         ],
     ],
@@ -75,4 +75,4 @@ return [
     'defaults' => [
         'expires_in_minutes' => 1440, // 24 hours
     ],
-]; 
+];

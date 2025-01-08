@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\UploadRequest;
 use App\Models\UploadObject;
+use App\Models\UploadRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -15,27 +15,27 @@ class QuickDropService
         try {
             // Generate 32 bytes of random data (256 bits)
             $randomBytes = random_bytes(32);
-            
+
             // Create a base64 URL-safe string and remove padding
             $token = rtrim(strtr(base64_encode($randomBytes), '+/', '-_'), '=');
-            
+
             // Add timestamp hash to make it even more unique
-            $timeHash = hash('xxh3', microtime(true) . uniqid('', true));
-            
+            $timeHash = hash('xxh3', microtime(true).uniqid('', true));
+
             // Ensure we have a valid string
             if (empty($token) || empty($timeHash)) {
                 throw new \Exception('Failed to generate secure token components');
             }
-            
-            return $token . $timeHash;
+
+            return $token.$timeHash;
         } catch (\Exception $e) {
             \Log::error('Failed to generate secure token', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             // Fallback to a simpler but still secure method
-            return Str::random(64) . uniqid('', true);
+            return Str::random(64).uniqid('', true);
         }
     }
 
@@ -46,7 +46,7 @@ class QuickDropService
     ): UploadObject {
         // Calculate file hash before any processing
         $fileHash = hash_file('sha256', $file->getRealPath());
-        
+
         // Check for duplicate by hash first
         $existingFileByHash = UploadObject::where('file_hash', $fileHash)
             ->whereHas('uploadRequests', function ($query) use ($request) {
@@ -57,8 +57,9 @@ class QuickDropService
         if ($existingFileByHash) {
             \Log::info('Duplicate file detected by hash', [
                 'original_name' => $file->getClientOriginalName(),
-                'hash' => $fileHash
+                'hash'          => $fileHash,
             ]);
+
             return $existingFileByHash;
         }
 
@@ -77,15 +78,15 @@ class QuickDropService
             // This is a new version of an existing file
             $version = $existingFileByName->getNextVersion();
             $originalFileId = $existingFileByName->original_file_id ?? $existingFileByName->id;
-            
+
             \Log::info('Creating new version of file', [
                 'original_name' => $file->getClientOriginalName(),
-                'version' => $version
+                'version'       => $version,
             ]);
         }
 
-        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $path = $request->requesting_user_id . '/' . $request->unique_request_id . '/' . $filename;
+        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
+        $path = $request->requesting_user_id.'/'.$request->unique_request_id.'/'.$filename;
 
         $uploadObject = new UploadObject();
         $uploadObject->owner_id = $ownerId;
@@ -161,4 +162,4 @@ class QuickDropService
         // This is a placeholder - you should implement proper decryption
         return $content;
     }
-} 
+}
