@@ -9,6 +9,7 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist && \
 FROM node:20-alpine AS frontend
 WORKDIR /app
 COPY . .
+COPY --from=vendor /app/vendor/ vendor/ 
 RUN npm ci && \
     npm run build
 
