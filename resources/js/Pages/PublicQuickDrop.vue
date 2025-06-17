@@ -1,74 +1,11 @@
-<template>
-    <GuestLayout>
-        <Head title="QuickDrop Upload" />
-
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-            <div class="p-6 text-gray-900 dark:text-gray-100">
-                <Notification />
-                
-                <div class="mb-6">
-                    <h2 class="text-lg font-semibold">QuickDrop Upload</h2>
-                    <TimeLeft 
-                        :expires-at="uploadRequest.expires_at"
-                        :is-expired="uploadRequest.is_expired"
-                    />
-
-                    <EncryptionKeyInput
-                        v-if="uploadRequest.is_encrypted"
-                        v-model="formKey"
-                        :is-public="true"
-                        @verify="verifyAndStoreKey"
-                    />
-                </div>
-
-                <FileUploadZone
-                    v-if="canUpload && uploadRequest.can_upload"
-                    :allowed-mime-types="uploadRequest.allowed_mime_types"
-                    :max-file-size="uploadRequest.max_file_size"
-                    :completed-files="files"
-                    :upload-request="uploadRequest"
-                    @upload-files="handleMultipleFiles"
-                />
-
-                <button 
-                    v-if="pendingFiles.length"
-                    @click="uploadPendingFiles"
-                    class="mt-4 w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    :disabled="isUploading"
-                >
-                    <ArrowUpTrayIcon v-if="!isUploading" class="h-5 w-5 mr-2" />
-                    <svg v-else class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span v-if="isUploading">Uploading...</span>
-                    <span v-else>Upload {{ pendingFiles.length }} {{ pendingFiles.length === 1 ? 'File' : 'Files' }}</span>
-                </button>
-
-                <FileList
-                    v-if="files.length"
-                    :files="sortedFiles"
-                    :canDownload="uploadRequest.can_download"
-                    :canDelete="uploadRequest.can_delete"
-                    @download-file="downloadFile"
-                    @download-all="downloadAllFiles"
-                    @delete-file="deleteFile"
-                    :key="`file-list-${files.length}`"
-                />
-
-                <div v-if="!uploadRequest.can_download && files.length" class="mt-6 text-center text-gray-500">
-                    <p>Files uploaded to this QuickDrop box can only be downloaded by its owner.</p>
-                    <p class="mt-2">Your upload was successful, but you'll need to contact the owner to access the files.</p>
-                </div>
-            </div>
-        </div>
-    </GuestLayout>
-</template>
-
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import GuestLayout from '@/Layouts/GuestLayout.vue';
+import PublicLayout from '@/Layouts/PublicLayout.vue';
+import Card from '@/Components/App/Card.vue';
+import Button from '@/Components/App/Button.vue';
+import Icon from '@/Components/App/Icon.vue';
+import ProgressRing from '@/Components/App/ProgressRing.vue';
 import axios from 'axios';
 import { decryptFile } from '@/Services/EncryptionService';
 import FileUploadZone from '@/Components/FileUploadZone.vue';
@@ -77,9 +14,7 @@ import EncryptionKeyInput from '@/Components/EncryptionKeyInput.vue';
 import TimeLeft from '@/Components/TimeLeft.vue';
 import { useFileUpload } from '@/Composables/useFileUpload';
 import { useEncryptionKey } from '@/Composables/useEncryptionKey';
-import { ArrowUpTrayIcon } from '@heroicons/vue/24/solid';
 import Notification from '@/Components/Notification.vue';
-import UploadProgress from '@/Components/UploadProgress.vue';
 
 const props = defineProps({
     uploadRequest: {
@@ -112,6 +47,18 @@ const {
 onMounted(() => {
     initializeKey();
 });
+
+const storageUsed = computed(() => {
+    return files.value.reduce((total, file) => total + (file.size || 0), 0);
+});
+
+const formatBytes = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 const downloadFile = async (file) => {
     if (!uploadRequestRef.value.can_download) {
@@ -191,4 +138,197 @@ const sortedFiles = computed(() => {
         return new Date(b.uploaded_at) - new Date(a.uploaded_at);
     });
 });
-</script> 
+</script>
+
+<template>
+    <Head title="QuickDrop Upload" />
+
+    <PublicLayout>
+        <div class="min-h-screen flex items-center justify-center py-12">
+            <div class="max-w-4xl mx-auto w-full space-y-8">
+                <Notification />
+                
+                <!-- Header -->
+                <div class="text-center">
+                    <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-primary flex items-center justify-center animate-pulse-glow">
+                        <Icon name="upload" :size="40" class="text-white" />
+                    </div>
+                    <h1 class="text-4xl font-display font-bold gradient-text mb-4">
+                        {{ uploadRequest.title || 'QuickDrop Upload' }}
+                    </h1>
+                    <p class="text-text-secondary text-lg mb-6">
+                        {{ uploadRequest.comment || 'Share your files securely' }}
+                    </p>
+                    
+                    <!-- Time and Reference Info -->
+                    <div class="flex items-center justify-center space-x-6 text-sm">
+                        <div class="flex items-center space-x-2">
+                            <Icon name="clock" :size="16" class="text-text-muted" />
+                            <TimeLeft 
+                                :expires-at="uploadRequest.expires_at"
+                                :is-expired="uploadRequest.is_expired"
+                            />
+                        </div>
+                        <div v-if="uploadRequest.reference_number" class="flex items-center space-x-2">
+                            <Icon name="hash" :size="16" class="text-text-muted" />
+                            <span class="font-mono">{{ uploadRequest.reference_number }}</span>
+                        </div>
+                        <div v-if="uploadRequest.is_encrypted" class="flex items-center space-x-2">
+                            <Icon name="shield" :size="16" class="text-blue-400" />
+                            <span class="text-blue-400">Encrypted</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card class="text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-primary flex items-center justify-center">
+                            <Icon name="files" :size="24" class="text-white" />
+                        </div>
+                        <div class="text-2xl font-bold text-text-primary">{{ files.length }}</div>
+                        <div class="text-sm text-text-secondary">Files Uploaded</div>
+                    </Card>
+                    
+                    <Card class="text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-secondary flex items-center justify-center">
+                            <Icon name="harddrive" :size="24" class="text-white" />
+                        </div>
+                        <div class="text-2xl font-bold text-text-primary">{{ formatBytes(storageUsed) }}</div>
+                        <div class="text-sm text-text-secondary">Total Size</div>
+                    </Card>
+                    
+                    <Card class="text-center">
+                        <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-primary flex items-center justify-center">
+                            <Icon :name="uploadRequest.is_encrypted ? 'shield' : 'unlock'" :size="24" class="text-white" />
+                        </div>
+                        <div class="text-lg font-bold text-text-primary">
+                            {{ uploadRequest.is_encrypted ? 'Encrypted' : 'Standard' }}
+                        </div>
+                        <div class="text-sm text-text-secondary">Security</div>
+                    </Card>
+                </div>
+
+                <!-- Encryption Key Input -->
+                <Card v-if="uploadRequest.is_encrypted" class="border-amber-500/20 bg-amber-500/5">
+                    <div class="flex items-start space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                            <Icon name="key" :size="24" class="text-amber-400" />
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-amber-400 mb-2">Encryption Key Required</h3>
+                            <p class="text-sm text-text-secondary mb-4">
+                                This QuickDrop is encrypted. Enter the encryption key provided by the owner to upload or download files.
+                            </p>
+                            <EncryptionKeyInput
+                                v-model="formKey"
+                                :is-public="true"
+                                @verify="verifyAndStoreKey"
+                            />
+                        </div>
+                    </div>
+                </Card>
+
+                <!-- Upload Zone -->
+                <Card v-if="canUpload && uploadRequest.can_upload">
+                    <div class="text-center mb-6">
+                        <h2 class="text-2xl font-semibold text-text-primary mb-2">Upload Your Files</h2>
+                        <p class="text-text-secondary">
+                            Drag and drop files here or click to browse
+                        </p>
+                    </div>
+                    
+                    <FileUploadZone
+                        :allowed-mime-types="uploadRequest.allowed_mime_types"
+                        :max-file-size="uploadRequest.max_file_size"
+                        :completed-files="files"
+                        :upload-request="uploadRequest"
+                        @upload-files="handleMultipleFiles"
+                    />
+
+                    <Button 
+                        v-if="pendingFiles.length"
+                        @click="uploadPendingFiles"
+                        variant="primary"
+                        size="lg"
+                        :loading="isUploading"
+                        :disabled="isUploading"
+                        class="mt-6 w-full animate-pulse-glow"
+                    >
+                        <Icon v-if="!isUploading" name="upload" :size="20" class="mr-2" />
+                        <span v-if="isUploading">Uploading Files...</span>
+                        <span v-else>Upload {{ pendingFiles.length }} {{ pendingFiles.length === 1 ? 'File' : 'Files' }}</span>
+                    </Button>
+                </Card>
+
+                <!-- Upload Not Allowed -->
+                <Card v-else-if="!uploadRequest.can_upload" class="text-center border-red-500/20 bg-red-500/5">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
+                        <Icon name="ban" :size="32" class="text-red-400" />
+                    </div>
+                    <h3 class="text-lg font-semibold text-red-400 mb-2">Upload Not Available</h3>
+                    <p class="text-text-secondary">
+                        File uploads are not allowed for this QuickDrop box.
+                    </p>
+                </Card>
+
+                <!-- File List -->
+                <Card v-if="files.length">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-semibold text-text-primary">Uploaded Files</h2>
+                        <Button
+                            v-if="files.length > 1 && uploadRequest.can_download"
+                            variant="outline"
+                            icon="download"
+                            @click="downloadAllFiles"
+                        >
+                            Download All
+                        </Button>
+                    </div>
+                    
+                    <FileList
+                        :files="sortedFiles"
+                        :canDownload="uploadRequest.can_download"
+                        :canDelete="uploadRequest.can_delete"
+                        @download-file="downloadFile"
+                        @download-all="downloadAllFiles"
+                        @delete-file="deleteFile"
+                        :key="`file-list-${files.length}`"
+                    />
+                </Card>
+
+                <!-- No Download Access -->
+                <Card v-if="!uploadRequest.can_download && files.length" class="text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-surface flex items-center justify-center">
+                        <Icon name="eyeOff" :size="32" class="text-text-muted" />
+                    </div>
+                    <h3 class="text-lg font-semibold text-text-primary mb-2">Files Successfully Uploaded!</h3>
+                    <p class="text-text-secondary mb-4">
+                        Your files have been uploaded securely, but downloads are restricted to the box owner.
+                    </p>
+                    <p class="text-sm text-text-secondary">
+                        Contact the owner if you need to access the uploaded files.
+                    </p>
+                </Card>
+
+                <!-- Empty State -->
+                <Card v-if="!files.length && !canUpload" class="text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-surface flex items-center justify-center">
+                        <Icon name="inbox" :size="32" class="text-text-muted" />
+                    </div>
+                    <h3 class="text-lg font-semibold text-text-primary mb-2">No Files Yet</h3>
+                    <p class="text-text-secondary">
+                        This QuickDrop box is ready but doesn't contain any files yet.
+                    </p>
+                </Card>
+
+                <!-- Footer -->
+                <div class="text-center">
+                    <p class="text-xs text-text-muted">
+                        Powered by <span class="gradient-text font-semibold">QuickDrop</span> - Secure File Sharing
+                    </p>
+                </div>
+            </div>
+        </div>
+    </PublicLayout>
+</template>

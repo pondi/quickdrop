@@ -1,176 +1,13 @@
-<template>
-    <AuthenticatedLayout>
-        <Head title="QuickDrop" />
-
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900 dark:text-gray-100 relative">
-                        <Notification />
-                        <!-- Success Message Section -->
-                        <div v-if="showSuccessMessage" class="mb-6">
-                            <button 
-                                @click="toggleSuccessMessage"
-                                class="w-full flex items-center justify-between p-4 bg-green-50 dark:bg-green-900 rounded-lg hover:bg-green-100 dark:hover:bg-green-800 transition-colors"
-                            >
-                                <h3 class="text-lg font-medium text-green-800 dark:text-green-100">
-                                    Your QuickDrop Box is Ready! 🎉
-                                </h3>
-                                <component 
-                                    :is="isSuccessMessageExpanded ? ChevronUpIcon : ChevronDownIcon"
-                                    class="w-5 h-5 text-green-800 dark:text-green-100"
-                                />
-                            </button>
-
-                            <div 
-                                v-show="isSuccessMessageExpanded"
-                                class="mt-4 p-4 bg-green-50 dark:bg-green-900 rounded-lg space-y-6"
-                            >
-                                <div>
-                                    <p class="text-sm text-green-700 dark:text-green-200 mb-4">
-                                        Your secure file sharing box has been created. Here's what you need to know:
-                                    </p>
-                                </div>
-
-                                <!-- Upload Link Section -->
-                                <div>
-                                    <label class="block text-sm font-medium text-green-800 dark:text-green-100">
-                                        1. Share this Upload Link
-                                    </label>
-                                    <p class="text-sm text-green-700 dark:text-green-200 mb-2">
-                                        Send this link to people who need to upload files to you:
-                                    </p>
-                                    <div class="mt-1 flex rounded-md shadow-sm">
-                                        <input
-                                            type="text"
-                                            :value="currentUrl"
-                                            readonly
-                                            class="flex-1 min-w-0 block w-full px-3 py-2 rounded-md text-sm border-green-300 bg-white dark:bg-gray-700"
-                                        />
-                                        <button
-                                            type="button"
-                                            @click="copyToClipboard(currentUrl)"
-                                            class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 dark:text-green-100 dark:bg-green-800 dark:hover:bg-green-700"
-                                        >
-                                            Copy Link
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Encryption Key Section -->
-                                <div v-if="encryptionKey" class="mt-4">
-                                    <label class="block text-sm font-medium text-green-800 dark:text-green-100">
-                                        2. Save the Encryption Key
-                                    </label>
-                                    <p class="text-sm text-green-700 dark:text-green-200 mb-2">
-                                        This key is required to decrypt the files. Save it securely:
-                                    </p>
-                                    <div class="mt-1 flex rounded-md shadow-sm">
-                                        <input
-                                            type="text"
-                                            :value="encryptionKey"
-                                            readonly
-                                            class="flex-1 min-w-0 block w-full px-3 py-2 rounded-md text-sm border-green-300 bg-white dark:bg-gray-700"
-                                        />
-                                        <button
-                                            type="button"
-                                            @click="copyToClipboard(encryptionKey)"
-                                            class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 dark:text-green-100 dark:bg-green-800 dark:hover:bg-green-700"
-                                        >
-                                            Copy Key
-                                        </button>
-                                    </div>
-                                    <div class="mt-4 p-4 bg-green-100 dark:bg-green-800 rounded">
-                                        <p class="text-sm font-medium text-green-800 dark:text-green-100">
-                                            Security Tip: For sensitive files, share the upload link and encryption key through different communication channels 
-                                            (e.g., send the link via email and the key via message/phone).
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <!-- How it Works Section -->
-                                <div>
-                                    <label class="block text-sm font-medium text-green-800 dark:text-green-100">
-                                        3. How it Works
-                                    </label>
-                                    <div class="text-sm text-green-700 dark:text-green-200 mt-2">
-                                        <p class="mb-2">For people uploading files:</p>
-                                        <ol class="list-decimal ml-5 space-y-1">
-                                            <li>They visit the upload link</li>
-                                            <li v-if="$page.props.encryptionKey">They enter the encryption key you provided</li>
-                                            <li>They can drag & drop or select files to upload</li>
-                                            <li v-if="$page.props.encryptionKey">Files are automatically encrypted before upload</li>
-                                            <li>You'll receive a notification when files are uploaded</li>
-                                        </ol>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Main Content Section -->
-                        <div class="mb-6">
-                            <h2 class="text-lg font-semibold">QuickDrop Box</h2>
-                            <TimeLeft 
-                                :expires-at="uploadRequest.expires_at"
-                                :is-expired="uploadRequest.is_expired"
-                            />
-                            
-                            <EncryptionKeyInput
-                                v-if="uploadRequest.is_encrypted"
-                                v-model="formKey"
-                                :is-public="false"
-                                @verify="verifyAndStoreKey"
-                            />
-                        </div>
-
-                        <FileUploadZone
-                            v-if="canUpload"
-                            :allowed-mime-types="uploadRequest.allowed_mime_types"
-                            :max-file-size="uploadRequest.max_file_size"
-                            :completed-files="files"
-                            :upload-request="uploadRequest"
-                            @upload-files="handleMultipleFiles"
-                        />
-
-                        <button 
-                            v-if="pendingFiles.length"
-                            @click="uploadPendingFiles"
-                            class="mt-4 w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            :disabled="isUploading"
-                        >
-                            <ArrowUpTrayIcon v-if="!isUploading" class="h-5 w-5 mr-2" />
-                            <svg v-else class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span v-if="isUploading">Uploading...</span>
-                            <span v-else>Upload {{ pendingFiles.length }} {{ pendingFiles.length === 1 ? 'File' : 'Files' }}</span>
-                        </button>
-
-                        <FileList
-                            v-if="files.length"
-                            :files="sortedFiles"
-                            :can-download="canViewFiles"
-                            @download-file="downloadFile"
-                            @download-all="downloadAllFiles"
-                            :key="`file-list-${files.length}`"
-                        />
-
-                        <div v-if="!canViewFiles" class="mt-6 text-center text-gray-500">
-                            <p>Files uploaded to this QuickDrop box can only be viewed by its owner.</p>
-                            <p v-if="files.length" class="mt-2">Your upload was successful, but you'll need to contact the owner to access the files.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </AuthenticatedLayout>
-</template>
-
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import Card from '@/Components/App/Card.vue';
+import Button from '@/Components/App/Button.vue';
+import Icon from '@/Components/App/Icon.vue';
+import ProgressRing from '@/Components/App/ProgressRing.vue';
+import DropZone from '@/Components/App/DropZone.vue';
+import Modal from '@/Components/App/Modal.vue';
 import axios from 'axios';
 import { decryptFile } from '@/Services/EncryptionService';
 import FileUploadZone from '@/Components/FileUploadZone.vue';
@@ -179,7 +16,6 @@ import EncryptionKeyInput from '@/Components/EncryptionKeyInput.vue';
 import TimeLeft from '@/Components/TimeLeft.vue';
 import { useFileUpload } from '@/Composables/useFileUpload';
 import { useEncryptionKey } from '@/Composables/useEncryptionKey';
-import { ChevronDownIcon, ChevronUpIcon, ArrowUpTrayIcon } from '@heroicons/vue/24/solid';
 import Notification from '@/Components/Notification.vue';
 
 const props = defineProps({
@@ -207,6 +43,8 @@ const props = defineProps({
 
 const isSuccessMessageExpanded = ref(true);
 const showSuccessMessage = ref(props.showNewBoxMessage);
+const showShareModal = ref(false);
+const copySuccess = ref(false);
 
 const uploadRequestRef = ref(props.uploadRequest);
 watch(() => props.uploadRequest, (newVal) => {
@@ -234,6 +72,18 @@ const currentUrl = computed(() => {
     return typeof window !== 'undefined' ? window.location.href : '';
 });
 
+const storageUsed = computed(() => {
+    return files.value.reduce((total, file) => total + (file.size || 0), 0);
+});
+
+const formatBytes = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 const downloadFile = async (file) => {
     try {
         const downloadUrl = route('download.file', {
@@ -242,7 +92,6 @@ const downloadFile = async (file) => {
         });
 
         if (props.uploadRequest.is_encrypted) {
-            // For encrypted files, we need to download and decrypt in the browser
             const key = await getCurrentKey();
             if (!key) {
                 throw new Error('Please enter the encryption key to download files');
@@ -253,7 +102,6 @@ const downloadFile = async (file) => {
                 throw new Error(`Download failed: ${response.statusText}`);
             }
 
-            // Check if the response is JSON (error message)
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 const error = await response.json();
@@ -263,7 +111,6 @@ const downloadFile = async (file) => {
             const blob = await response.blob();
             const decryptedBlob = await decryptFile(blob, key);
             
-            // Create download link with original filename
             const url = window.URL.createObjectURL(decryptedBlob);
             const link = document.createElement('a');
             link.href = url;
@@ -271,13 +118,11 @@ const downloadFile = async (file) => {
             document.body.appendChild(link);
             link.click();
             
-            // Cleanup
             setTimeout(() => {
                 document.body.removeChild(link);
                 window.URL.revokeObjectURL(url);
             }, 100);
         } else {
-            // For non-encrypted files, open in a new window to bypass Inertia
             window.open(downloadUrl, '_blank');
         }
     } catch (error) {
@@ -289,9 +134,10 @@ const downloadFile = async (file) => {
 const copyToClipboard = async (text) => {
     try {
         await navigator.clipboard.writeText(text);
-        alert('Copied to clipboard!');
+        copySuccess.value = true;
+        setTimeout(() => copySuccess.value = false, 2000);
     } catch (err) {
-        alert('Failed to copy to clipboard');
+        console.error('Failed to copy to clipboard');
     }
 };
 
@@ -307,18 +153,12 @@ const sortedFiles = computed(() => {
 
 const downloadAllFiles = async () => {
     try {
-        // For bulk download, don't include fileUuid parameter
         const downloadUrl = route('download.file', {
             requestId: uploadRequestRef.value.unique_request_id
         });
 
-        // Log the URL for debugging
-        console.log('Bulk download URL:', downloadUrl);
-
-        // Open in a new window to bypass Inertia
         const win = window.open(downloadUrl, '_blank');
         if (!win || win.closed || typeof win.closed === 'undefined') {
-            // Popup was blocked, try direct location change
             window.location.href = downloadUrl;
         }
     } catch (error) {
@@ -326,4 +166,343 @@ const downloadAllFiles = async () => {
         alert(error.message || 'Bulk download failed. Please try again.');
     }
 };
+
+const openShareModal = () => {
+    showShareModal.value = true;
+};
 </script>
+
+<template>
+    <Head title="QuickDrop Box" />
+
+    <AppLayout>
+        <div class="max-w-7xl mx-auto space-y-8">
+            <Notification />
+            
+            <!-- Header -->
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+                <div>
+                    <h1 class="text-3xl font-display font-bold gradient-text">
+                        {{ uploadRequest.title || 'QuickDrop Box' }}
+                    </h1>
+                    <div class="flex items-center space-x-4 mt-2">
+                        <TimeLeft 
+                            :expires-at="uploadRequest.expires_at"
+                            :is-expired="uploadRequest.is_expired"
+                        />
+                        <div v-if="uploadRequest.reference_number" class="flex items-center space-x-1 text-text-secondary">
+                            <Icon name="hash" :size="16" />
+                            <span class="font-mono text-sm">{{ uploadRequest.reference_number }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <Button
+                        variant="outline"
+                        icon="share2"
+                        @click="openShareModal"
+                    >
+                        Share
+                    </Button>
+                    <Button
+                        v-if="files.length > 1"
+                        variant="primary"
+                        icon="download"
+                        @click="downloadAllFiles"
+                    >
+                        Download All
+                    </Button>
+                </div>
+            </div>
+
+            <!-- Success Message -->
+            <Card v-if="showSuccessMessage" class="border-green-500/20 bg-green-500/5">
+                <button 
+                    @click="toggleSuccessMessage"
+                    class="w-full flex items-center justify-between"
+                >
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                            <Icon name="checkCircle" :size="24" class="text-green-400" />
+                        </div>
+                        <div class="text-left">
+                            <h3 class="text-lg font-semibold text-green-400">
+                                Your QuickDrop Box is Ready! 🎉
+                            </h3>
+                            <p class="text-sm text-text-secondary">
+                                Share the link and start collecting files
+                            </p>
+                        </div>
+                    </div>
+                    <Icon 
+                        :name="isSuccessMessageExpanded ? 'chevronUp' : 'chevronDown'" 
+                        :size="20" 
+                        class="text-green-400" 
+                    />
+                </button>
+
+                <div v-show="isSuccessMessageExpanded" class="mt-6 space-y-6">
+                    <!-- Upload Link -->
+                    <div>
+                        <label class="block text-sm font-medium text-text-primary mb-2">
+                            1. Share Upload Link
+                        </label>
+                        <div class="flex space-x-2">
+                            <input
+                                :value="currentUrl"
+                                readonly
+                                class="flex-1 px-4 py-2 rounded-lg bg-surface border border-white/10 text-text-primary text-sm"
+                            />
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                icon="copy"
+                                @click="copyToClipboard(currentUrl)"
+                            >
+                                {{ copySuccess ? 'Copied!' : 'Copy' }}
+                            </Button>
+                        </div>
+                    </div>
+
+                    <!-- Encryption Key -->
+                    <div v-if="encryptionKey" class="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <label class="block text-sm font-medium text-amber-400 mb-2">
+                            <Icon name="shield" :size="16" class="inline mr-1" />
+                            2. Save Encryption Key
+                        </label>
+                        <div class="flex space-x-2 mb-3">
+                            <input
+                                :value="encryptionKey"
+                                readonly
+                                class="flex-1 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-mono"
+                            />
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                icon="copy"
+                                @click="copyToClipboard(encryptionKey)"
+                            >
+                                Copy Key
+                            </Button>
+                        </div>
+                        <p class="text-xs text-amber-400">
+                            This key is required to decrypt uploaded files. Share it securely through a different channel than the upload link.
+                        </p>
+                    </div>
+
+                    <!-- How it Works -->
+                    <div class="p-4 rounded-lg bg-surface">
+                        <h4 class="font-medium text-text-primary mb-3">3. How It Works</h4>
+                        <div class="space-y-2 text-sm text-text-secondary">
+                            <div class="flex items-start space-x-2">
+                                <div class="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                                    <span class="text-xs text-primary font-semibold">1</span>
+                                </div>
+                                <span>Recipients visit the upload link</span>
+                            </div>
+                            <div v-if="uploadRequest.is_encrypted" class="flex items-start space-x-2">
+                                <div class="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                                    <span class="text-xs text-primary font-semibold">2</span>
+                                </div>
+                                <span>They enter the encryption key you provided</span>
+                            </div>
+                            <div class="flex items-start space-x-2">
+                                <div class="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                                    <span class="text-xs text-primary font-semibold">{{ uploadRequest.is_encrypted ? '3' : '2' }}</span>
+                                </div>
+                                <span>They can drag & drop or select files to upload</span>
+                            </div>
+                            <div v-if="uploadRequest.is_encrypted" class="flex items-start space-x-2">
+                                <div class="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                                    <span class="text-xs text-primary font-semibold">4</span>
+                                </div>
+                                <span>Files are automatically encrypted before upload</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            <!-- Stats Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
+                            <Icon name="files" :size="24" class="text-white" />
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-text-primary">{{ files.length }}</div>
+                            <div class="text-sm text-text-secondary">Files Uploaded</div>
+                        </div>
+                    </div>
+                </Card>
+                
+                <Card>
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-secondary flex items-center justify-center">
+                            <Icon name="harddrive" :size="24" class="text-white" />
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-text-primary">{{ formatBytes(storageUsed) }}</div>
+                            <div class="text-sm text-text-secondary">Total Size</div>
+                        </div>
+                    </div>
+                </Card>
+                
+                <Card>
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
+                            <Icon :name="uploadRequest.is_encrypted ? 'shield' : 'unlock'" :size="24" class="text-white" />
+                        </div>
+                        <div>
+                            <div class="text-lg font-bold text-text-primary">
+                                {{ uploadRequest.is_encrypted ? 'Encrypted' : 'Standard' }}
+                            </div>
+                            <div class="text-sm text-text-secondary">Security Level</div>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+
+            <!-- Encryption Key Input -->
+            <Card v-if="uploadRequest.is_encrypted">
+                <EncryptionKeyInput
+                    v-model="formKey"
+                    :is-public="false"
+                    @verify="verifyAndStoreKey"
+                />
+            </Card>
+
+            <!-- File Upload Zone -->
+            <Card v-if="canUpload">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-semibold text-text-primary mb-2">Upload Files</h2>
+                    <p class="text-text-secondary">
+                        Drag and drop files or click to browse
+                    </p>
+                </div>
+                
+                <FileUploadZone
+                    :allowed-mime-types="uploadRequest.allowed_mime_types"
+                    :max-file-size="uploadRequest.max_file_size"
+                    :completed-files="files"
+                    :upload-request="uploadRequest"
+                    @upload-files="handleMultipleFiles"
+                />
+
+                <Button 
+                    v-if="pendingFiles.length"
+                    @click="uploadPendingFiles"
+                    variant="primary"
+                    size="lg"
+                    :loading="isUploading"
+                    :disabled="isUploading"
+                    class="mt-6 w-full"
+                >
+                    <Icon v-if="!isUploading" name="upload" :size="20" class="mr-2" />
+                    <span v-if="isUploading">Uploading...</span>
+                    <span v-else>Upload {{ pendingFiles.length }} {{ pendingFiles.length === 1 ? 'File' : 'Files' }}</span>
+                </Button>
+            </Card>
+
+            <!-- File List -->
+            <Card v-if="files.length">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-semibold text-text-primary">Uploaded Files</h2>
+                    <Button
+                        v-if="files.length > 1 && canViewFiles"
+                        variant="outline"
+                        icon="download"
+                        @click="downloadAllFiles"
+                    >
+                        Download All
+                    </Button>
+                </div>
+                
+                <FileList
+                    :files="sortedFiles"
+                    :can-download="canViewFiles"
+                    @download-file="downloadFile"
+                    @download-all="downloadAllFiles"
+                    :key="`file-list-${files.length}`"
+                />
+            </Card>
+
+            <!-- No Files Access Message -->
+            <Card v-if="!canViewFiles && files.length" class="text-center">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-surface flex items-center justify-center">
+                    <Icon name="eyeOff" :size="32" class="text-text-muted" />
+                </div>
+                <h3 class="text-lg font-semibold text-text-primary mb-2">Files Not Accessible</h3>
+                <p class="text-text-secondary mb-4">
+                    Files uploaded to this QuickDrop box can only be viewed by its owner.
+                </p>
+                <p class="text-sm text-text-secondary">
+                    Your upload was successful, but you'll need to contact the owner to access the files.
+                </p>
+            </Card>
+        </div>
+
+        <!-- Share Modal -->
+        <Modal
+            :show="showShareModal"
+            @close="showShareModal = false"
+            title="Share QuickDrop Box"
+        >
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-primary mb-2">
+                        Upload Link
+                    </label>
+                    <div class="flex space-x-2">
+                        <input
+                            :value="currentUrl"
+                            readonly
+                            class="flex-1 px-4 py-2 rounded-lg bg-surface border border-white/10 text-text-primary text-sm"
+                        />
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            icon="copy"
+                            @click="copyToClipboard(currentUrl)"
+                        >
+                            {{ copySuccess ? 'Copied!' : 'Copy' }}
+                        </Button>
+                    </div>
+                </div>
+
+                <div v-if="encryptionKey" class="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <label class="block text-sm font-medium text-amber-400 mb-2">
+                        <Icon name="shield" :size="16" class="inline mr-1" />
+                        Encryption Key
+                    </label>
+                    <div class="flex space-x-2 mb-2">
+                        <input
+                            :value="encryptionKey"
+                            readonly
+                            class="flex-1 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-mono"
+                        />
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            icon="copy"
+                            @click="copyToClipboard(encryptionKey)"
+                        >
+                            Copy Key
+                        </Button>
+                    </div>
+                    <p class="text-xs text-amber-400">
+                        Share this key through a different channel for security
+                    </p>
+                </div>
+            </div>
+            
+            <template #footer>
+                <Button variant="ghost" @click="showShareModal = false">
+                    Close
+                </Button>
+            </template>
+        </Modal>
+    </AppLayout>
+</template>
