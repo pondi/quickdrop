@@ -22,6 +22,7 @@
         "@heroicons/vue": "^2.2.0",
         "@vueform/vueform": "^1.9.6",
         "date-fns": "^4.1.0",
-        "jsencrypt": "^3.3.2"
+        "jsencrypt": "^3.3.2",
+        "lucide-vue-next": "^0.516.0"
     }
 }

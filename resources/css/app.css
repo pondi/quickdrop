@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import '../js/Styles/shared.css';
+@import '../js/Styles/app.css';
 
 /* File List Animations */
 .file-list-enter-active,
