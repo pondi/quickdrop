@@ -1,12 +1,12 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import TextInput from '@/Components/TextInput.vue';
-import InputError from '@/Components/InputError.vue';
-import axios from 'axios';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import Card from '@/Components/App/Card.vue';
+import Button from '@/Components/App/Button.vue';
+import Icon from '@/Components/App/Icon.vue';
+import ProgressRing from '@/Components/App/ProgressRing.vue';
+import Modal from '@/Components/App/Modal.vue';
 import { generateEncryptionKey, generateKeyHash, securelyStoreKey } from '@/Services/EncryptionService';
 
 const props = defineProps({
@@ -32,14 +32,49 @@ const form = useForm({
     allow_public_upload: true,
 });
 
-const commonMimeTypes = computed(() => props.config.allowed_mime_types);
-const expirationOptions = computed(() => props.config.expiration_options);
-const fileSizeOptions = computed(() => props.config.file_size_options);
-const maxFilesOptions = computed(() => props.config.max_files_options);
-
+const currentStep = ref(1);
+const totalSteps = 4;
 const isSubmitting = ref(false);
 const createdUrl = ref(null);
 const encryptionKey = ref(null);
+const showSuccessModal = ref(false);
+const copySuccess = ref(false);
+
+const stepProgress = computed(() => {
+    return (currentStep.value / totalSteps) * 100;
+});
+
+const canProceedToStep2 = computed(() => {
+    return form.title.trim().length > 0;
+});
+
+const canProceedToStep3 = computed(() => {
+    if (props.config?.reference_number?.required) {
+        return form.reference_number.trim().length > 0;
+    }
+    return true;
+});
+
+const expirationOptions = computed(() => props.config.expiration_options);
+
+const stepTitles = ['Basic Info', 'Reference & Settings', 'Security', 'Review & Create'];
+
+const nextStep = () => {
+    if (currentStep.value < totalSteps) {
+        currentStep.value++;
+    }
+};
+
+const prevStep = () => {
+    if (currentStep.value > 1) {
+        currentStep.value--;
+    }
+};
+
+const formatExpirationTime = (minutes) => {
+    const option = expirationOptions.value.find(opt => opt.value === minutes);
+    return option ? option.label : `${minutes} minutes`;
+};
 
 const submit = async () => {
     if (isSubmitting.value) return;
@@ -52,14 +87,14 @@ const submit = async () => {
         encryptionKey.value = clientEncryptionKey;
     }
     
-    form.post(route('quickdrop.store'), {
+    form.post(route('quick-drops.store'), {
         preserveScroll: true,
         onSuccess: (response) => {
             const urlParts = response.url.split('/');
             const uniqueRequestId = urlParts[urlParts.length - 1];
             
             if (uniqueRequestId) {
-                createdUrl.value = route('quickdrop.upload', uniqueRequestId);
+                createdUrl.value = route('quick-drops.show', uniqueRequestId);
                 
                 if (form.use_encryption && clientEncryptionKey) {
                     const storageKey = `quickdrop_key_${uniqueRequestId}`;
@@ -70,6 +105,8 @@ const submit = async () => {
                     }
                     encryptionKey.value = clientEncryptionKey;
                 }
+                
+                showSuccessModal.value = true;
             }
         },
         onError: () => {
@@ -85,195 +122,471 @@ const submit = async () => {
 const copyToClipboard = async (text) => {
     try {
         await navigator.clipboard.writeText(text);
-        alert('Copied to clipboard!');
+        copySuccess.value = true;
+        setTimeout(() => copySuccess.value = false, 2000);
     } catch (err) {
-        alert('Failed to copy to clipboard');
+        console.error('Failed to copy to clipboard');
+    }
+};
+
+const redirectToQuickDrop = () => {
+    if (createdUrl.value) {
+        router.visit(createdUrl.value);
     }
 };
 </script>
 
 <template>
-    <AuthenticatedLayout>
-        <Head title="Create QuickDrop Box" />
+    <Head title="Create New QuickDrop" />
 
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900 dark:text-gray-100">
-                        <h2 class="text-lg font-semibold mb-6">Create a New QuickDrop Box</h2>
+    <AppLayout>
+        <div class="max-w-4xl mx-auto space-y-8">
+            <!-- Header -->
+            <div class="text-center">
+                <h1 class="text-3xl font-display font-bold gradient-text mb-2">
+                    Create New QuickDrop
+                </h1>
+                <p class="text-text-secondary">
+                    Set up a secure space for file sharing
+                </p>
+            </div>
 
-                        <form @submit.prevent="submit" class="space-y-6">
-                            <div>
-                                <InputLabel for="title" value="Box Title" />
-                                <TextInput
-                                    id="title"
-                                    v-model="form.title"
-                                    type="text"
-                                    class="mt-1 block w-full"
-                                    placeholder="Enter a title for your QuickDrop box"
-                                    required
-                                />
-                                <InputError :message="form.errors.title" class="mt-2" />
+            <!-- Progress Indicator -->
+            <Card>
+                <div class="flex items-center justify-center mb-6">
+                    <ProgressRing 
+                        :value="stepProgress" 
+                        :size="100"
+                        :stroke-width="6"
+                        :show-percentage="false"
+                    />
+                    <div class="absolute">
+                        <span class="text-lg font-bold text-text-primary">{{ currentStep }}/{{ totalSteps }}</span>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between text-xs">
+                    <div 
+                        v-for="(title, index) in stepTitles"
+                        :key="index"
+                        class="flex flex-col items-center flex-1"
+                        :class="{ 'text-primary': currentStep > index, 'text-text-secondary': currentStep <= index }"
+                    >
+                        <div 
+                            class="w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-all"
+                            :class="currentStep > index + 1 
+                                ? 'bg-gradient-primary text-white' 
+                                : currentStep === index + 1 
+                                    ? 'bg-primary text-white' 
+                                    : 'bg-surface text-text-muted'"
+                        >
+                            <Icon 
+                                v-if="currentStep > index + 1" 
+                                name="check" 
+                                :size="16" 
+                            />
+                            <span v-else>{{ index + 1 }}</span>
+                        </div>
+                        <span class="text-center max-w-20">{{ title }}</span>
+                    </div>
+                </div>
+            </Card>
+
+            <!-- Form Steps -->
+            <Card class="min-h-96">
+                <Transition
+                    enter-active-class="transition ease-out duration-300"
+                    enter-from-class="opacity-0 transform translate-x-4"
+                    enter-to-class="opacity-100 transform translate-x-0"
+                    leave-active-class="transition ease-in duration-200"
+                    leave-from-class="opacity-100 transform translate-x-0"
+                    leave-to-class="opacity-0 transform -translate-x-4"
+                    mode="out-in"
+                >
+                    <!-- Step 1: Basic Info -->
+                    <div v-if="currentStep === 1" key="step1" class="space-y-6">
+                        <div class="text-center mb-8">
+                            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center">
+                                <Icon name="edit3" :size="32" class="text-white" />
                             </div>
+                            <h2 class="text-2xl font-semibold text-text-primary mb-2">Basic Information</h2>
+                            <p class="text-text-secondary">Give your QuickDrop a name and description</p>
+                        </div>
 
-                            <div>
-                                <InputLabel for="comment" value="Comment" />
-                                <textarea
-                                    id="comment"
-                                    v-model="form.comment"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600"
-                                    rows="3"
-                                    placeholder="Add any additional information or instructions"
-                                ></textarea>
-                                <InputError :message="form.errors.comment" class="mt-2" />
+                        <div>
+                            <label for="title" class="block text-sm font-medium text-text-primary mb-2">
+                                QuickDrop Title <span class="text-red-400">*</span>
+                            </label>
+                            <input
+                                id="title"
+                                v-model="form.title"
+                                type="text"
+                                required
+                                class="w-full px-4 py-3 rounded-xl bg-surface border border-white/10 text-text-primary placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/20': form.errors.title }"
+                                placeholder="My Project Files"
+                            />
+                            <p v-if="form.errors.title" class="mt-2 text-sm text-red-400">
+                                {{ form.errors.title }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label for="comment" class="block text-sm font-medium text-text-primary mb-2">
+                                Description
+                            </label>
+                            <textarea
+                                id="comment"
+                                v-model="form.comment"
+                                rows="4"
+                                class="w-full px-4 py-3 rounded-xl bg-surface border border-white/10 text-text-primary placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                                :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/20': form.errors.comment }"
+                                placeholder="Add any additional information or instructions for recipients..."
+                            />
+                            <p v-if="form.errors.comment" class="mt-2 text-sm text-red-400">
+                                {{ form.errors.comment }}
+                            </p>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                @click="nextStep"
+                                :disabled="!canProceedToStep2"
+                            >
+                                Continue
+                            </Button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Reference & Settings -->
+                    <div v-else-if="currentStep === 2" key="step2" class="space-y-6">
+                        <div class="text-center mb-8">
+                            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center">
+                                <Icon name="settings" :size="32" class="text-white" />
                             </div>
+                            <h2 class="text-2xl font-semibold text-text-primary mb-2">Settings & Reference</h2>
+                            <p class="text-text-secondary">Configure expiration and reference settings</p>
+                        </div>
 
-                            <div v-if="props.config?.reference_number?.enabled">
-                                <InputLabel 
-                                    for="reference_number" 
-                                    :value="props.config.reference_number?.label || 'Reference Number'" 
-                                />
-                                <TextInput
-                                    id="reference_number"
-                                    v-model="form.reference_number"
-                                    type="text"
-                                    class="mt-1 block w-full"
-                                    :placeholder="props.config.reference_number?.help_text || 'Enter reference number'"
-                                    :required="props.config.reference_number?.required"
-                                />
-                                <InputError :message="form.errors.reference_number" class="mt-2" />
+                        <div v-if="props.config?.reference_number?.enabled">
+                            <label for="reference_number" class="block text-sm font-medium text-text-primary mb-2">
+                                {{ props.config.reference_number?.label || 'Reference Number' }}
+                                <span v-if="props.config.reference_number?.required" class="text-red-400">*</span>
+                            </label>
+                            <input
+                                id="reference_number"
+                                v-model="form.reference_number"
+                                type="text"
+                                :required="props.config.reference_number?.required"
+                                class="w-full px-4 py-3 rounded-xl bg-surface border border-white/10 text-text-primary placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/20': form.errors.reference_number }"
+                                :placeholder="props.config.reference_number?.help_text || 'Enter reference number'"
+                            />
+                            <p v-if="form.errors.reference_number" class="mt-2 text-sm text-red-400">
+                                {{ form.errors.reference_number }}
+                            </p>
+                            <p v-if="props.config.reference_number?.help_text" class="mt-1 text-xs text-text-muted">
+                                {{ props.config.reference_number.help_text }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label for="expires_in_minutes" class="block text-sm font-medium text-text-primary mb-2">
+                                Expiration Time
+                            </label>
+                            <select
+                                v-model="form.expires_in_minutes"
+                                id="expires_in_minutes"
+                                class="w-full px-4 py-3 rounded-xl bg-surface border border-white/10 text-text-primary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/20': form.errors.expires_in_minutes }"
+                            >
+                                <option v-for="option in expirationOptions" :key="option.value" :value="option.value">
+                                    {{ option.label }}
+                                </option>
+                            </select>
+                            <p v-if="form.errors.expires_in_minutes" class="mt-2 text-sm text-red-400">
+                                {{ form.errors.expires_in_minutes }}
+                            </p>
+                        </div>
+
+                        <div class="flex space-x-3">
+                            <Button
+                                variant="ghost"
+                                size="lg"
+                                @click="prevStep"
+                                class="flex-1"
+                            >
+                                Back
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                @click="nextStep"
+                                :disabled="!canProceedToStep3"
+                                class="flex-1"
+                            >
+                                Continue
+                            </Button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Security -->
+                    <div v-else-if="currentStep === 3" key="step3" class="space-y-6">
+                        <div class="text-center mb-8">
+                            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center">
+                                <Icon name="shield" :size="32" class="text-white" />
                             </div>
+                            <h2 class="text-2xl font-semibold text-text-primary mb-2">Security & Permissions</h2>
+                            <p class="text-text-secondary">Configure encryption and access permissions</p>
+                        </div>
 
-                            <div>
-                                <InputLabel for="expires_in_minutes" value="Expiration Time" />
-                                <select
-                                    v-model="form.expires_in_minutes"
-                                    id="expires_in_minutes"
-                                    class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600"
-                                >
-                                    <option v-for="option in expirationOptions" :key="option.value" :value="option.value">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
-                                <InputError :message="form.errors.expires_in_minutes" class="mt-2" />
-                            </div>
-
-                            <div class="flex items-center">
-                                <input
-                                    v-model="form.use_encryption"
-                                    id="use_encryption"
-                                    type="checkbox"
-                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                />
-                                <label for="use_encryption" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
-                                    Enable End-to-End Encryption
+                        <div class="space-y-4">
+                            <div class="p-4 rounded-xl bg-surface border border-white/10">
+                                <label class="flex items-start space-x-3 cursor-pointer">
+                                    <input
+                                        v-model="form.use_encryption"
+                                        type="checkbox"
+                                        class="w-5 h-5 mt-0.5 rounded bg-surface border-white/20 text-primary focus:ring-2 focus:ring-primary/20 focus:ring-offset-0"
+                                    />
+                                    <div>
+                                        <span class="font-medium text-text-primary">Enable End-to-End Encryption</span>
+                                        <p class="text-sm text-text-secondary mt-1">
+                                            Files will be encrypted before upload and can only be decrypted with the encryption key
+                                        </p>
+                                    </div>
                                 </label>
                             </div>
 
-                            <!-- Public User Permissions -->
-                            <div class="space-y-4 border-t pt-4 mt-4">
-                                <h3 class="text-md font-medium">Public User Permissions</h3>
+                            <div class="space-y-3">
+                                <h3 class="font-medium text-text-primary">Public User Permissions</h3>
                                 
-                                <div class="flex items-center">
-                                    <input
-                                        v-model="form.allow_public_upload"
-                                        id="allow_public_upload"
-                                        type="checkbox"
-                                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                    />
-                                    <label for="allow_public_upload" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
-                                        Allow Public Users to Upload Files
-                                    </label>
-                                </div>
-
-                                <div class="flex items-center">
-                                    <input
-                                        v-model="form.allow_public_download"
-                                        id="allow_public_download"
-                                        type="checkbox"
-                                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                    />
-                                    <label for="allow_public_download" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
-                                        Allow Public Users to Download Files
-                                    </label>
-                                </div>
-
-                                <div class="flex items-center">
-                                    <input
-                                        v-model="form.allow_public_delete"
-                                        id="allow_public_delete"
-                                        type="checkbox"
-                                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                    />
-                                    <label for="allow_public_delete" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
-                                        Allow Public Users to Delete Files
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="flex items-center justify-end mt-6">
-                                <PrimaryButton :class="{ 'opacity-25': isSubmitting }" :disabled="isSubmitting">
-                                    Create QuickDrop Box
-                                </PrimaryButton>
-                            </div>
-                        </form>
-
-                        <!-- Success State -->
-                        <div v-if="createdUrl" class="mt-8 p-4 bg-green-50 dark:bg-green-900 rounded-lg">
-                            <h3 class="text-lg font-medium text-green-800 dark:text-green-100 mb-4">
-                                QuickDrop Box Created Successfully!
-                            </h3>
-                            
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-green-800 dark:text-green-100">
-                                        Upload URL
-                                    </label>
-                                    <div class="mt-1 flex rounded-md shadow-sm">
+                                <div class="p-4 rounded-xl bg-surface border border-white/10">
+                                    <label class="flex items-start space-x-3 cursor-pointer">
                                         <input
-                                            type="text"
-                                            :value="createdUrl"
-                                            readonly
-                                            class="flex-1 min-w-0 block w-full px-3 py-2 rounded-md text-sm border-green-300 bg-white dark:bg-gray-700"
+                                            v-model="form.allow_public_upload"
+                                            type="checkbox"
+                                            class="w-5 h-5 mt-0.5 rounded bg-surface border-white/20 text-primary focus:ring-2 focus:ring-primary/20 focus:ring-offset-0"
                                         />
-                                        <button
-                                            type="button"
-                                            @click="copyToClipboard(createdUrl)"
-                                            class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 dark:text-green-100 dark:bg-green-800 dark:hover:bg-green-700"
-                                        >
-                                            Copy
-                                        </button>
-                                    </div>
+                                        <div>
+                                            <span class="font-medium text-text-primary">Allow Public Upload</span>
+                                            <p class="text-sm text-text-secondary mt-1">
+                                                Anyone with the link can upload files to this QuickDrop
+                                            </p>
+                                        </div>
+                                    </label>
                                 </div>
 
-                                <div v-if="encryptionKey" class="mt-4">
-                                    <label class="block text-sm font-medium text-green-800 dark:text-green-100">
-                                        Encryption Key (Save this securely!)
-                                    </label>
-                                    <div class="mt-1 flex rounded-md shadow-sm">
+                                <div class="p-4 rounded-xl bg-surface border border-white/10">
+                                    <label class="flex items-start space-x-3 cursor-pointer">
                                         <input
-                                            type="text"
-                                            :value="encryptionKey"
-                                            readonly
-                                            class="flex-1 min-w-0 block w-full px-3 py-2 rounded-md text-sm border-green-300 bg-white dark:bg-gray-700"
+                                            v-model="form.allow_public_download"
+                                            type="checkbox"
+                                            class="w-5 h-5 mt-0.5 rounded bg-surface border-white/20 text-primary focus:ring-2 focus:ring-primary/20 focus:ring-offset-0"
                                         />
-                                        <button
-                                            type="button"
-                                            @click="copyToClipboard(encryptionKey)"
-                                            class="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 dark:text-green-100 dark:bg-green-800 dark:hover:bg-green-700"
-                                        >
-                                            Copy
-                                        </button>
-                                    </div>
-                                    <p class="mt-2 text-sm text-green-700 dark:text-green-200">
-                                        This key will be required to decrypt the files. Store it securely and share it only with intended recipients.
-                                    </p>
+                                        <div>
+                                            <span class="font-medium text-text-primary">Allow Public Download</span>
+                                            <p class="text-sm text-text-secondary mt-1">
+                                                Anyone with the link can download files from this QuickDrop
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div class="p-4 rounded-xl bg-surface border border-white/10">
+                                    <label class="flex items-start space-x-3 cursor-pointer">
+                                        <input
+                                            v-model="form.allow_public_delete"
+                                            type="checkbox"
+                                            class="w-5 h-5 mt-0.5 rounded bg-surface border-white/20 text-primary focus:ring-2 focus:ring-primary/20 focus:ring-offset-0"
+                                        />
+                                        <div>
+                                            <span class="font-medium text-text-primary">Allow Public Delete</span>
+                                            <p class="text-sm text-text-secondary mt-1">
+                                                Anyone with the link can delete files from this QuickDrop
+                                            </p>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
                         </div>
+
+                        <div class="flex space-x-3">
+                            <Button
+                                variant="ghost"
+                                size="lg"
+                                @click="prevStep"
+                                class="flex-1"
+                            >
+                                Back
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                @click="nextStep"
+                                class="flex-1"
+                            >
+                                Review
+                            </Button>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Review & Create -->
+                    <div v-else-if="currentStep === 4" key="step4" class="space-y-6">
+                        <div class="text-center mb-8">
+                            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center animate-pulse-glow">
+                                <Icon name="checkCircle" :size="32" class="text-white" />
+                            </div>
+                            <h2 class="text-2xl font-semibold text-text-primary mb-2">Review & Create</h2>
+                            <p class="text-text-secondary">Review your settings and create the QuickDrop</p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="p-4 rounded-xl bg-surface">
+                                <h3 class="font-medium text-text-primary mb-3">QuickDrop Details</h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between">
+                                        <span class="text-text-secondary">Title:</span>
+                                        <span class="text-text-primary font-medium">{{ form.title }}</span>
+                                    </div>
+                                    <div v-if="form.comment" class="flex justify-between">
+                                        <span class="text-text-secondary">Description:</span>
+                                        <span class="text-text-primary">{{ form.comment.substring(0, 50) }}{{ form.comment.length > 50 ? '...' : '' }}</span>
+                                    </div>
+                                    <div v-if="form.reference_number" class="flex justify-between">
+                                        <span class="text-text-secondary">Reference:</span>
+                                        <span class="text-text-primary font-mono">{{ form.reference_number }}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-text-secondary">Expires:</span>
+                                        <span class="text-text-primary">{{ formatExpirationTime(form.expires_in_minutes) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-4 rounded-xl bg-surface">
+                                <h3 class="font-medium text-text-primary mb-3">Security Settings</h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex items-center space-x-2">
+                                        <Icon :name="form.use_encryption ? 'check' : 'x'" :size="16" :class="form.use_encryption ? 'text-green-400' : 'text-red-400'" />
+                                        <span class="text-text-secondary">End-to-End Encryption</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <Icon :name="form.allow_public_upload ? 'check' : 'x'" :size="16" :class="form.allow_public_upload ? 'text-green-400' : 'text-red-400'" />
+                                        <span class="text-text-secondary">Public Upload</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <Icon :name="form.allow_public_download ? 'check' : 'x'" :size="16" :class="form.allow_public_download ? 'text-green-400' : 'text-red-400'" />
+                                        <span class="text-text-secondary">Public Download</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <Icon :name="form.allow_public_delete ? 'check' : 'x'" :size="16" :class="form.allow_public_delete ? 'text-green-400' : 'text-red-400'" />
+                                        <span class="text-text-secondary">Public Delete</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-3">
+                            <Button
+                                variant="ghost"
+                                size="lg"
+                                @click="prevStep"
+                                class="flex-1"
+                            >
+                                Back
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                @click="submit"
+                                :loading="isSubmitting"
+                                :disabled="isSubmitting"
+                                class="flex-1"
+                            >
+                                Create QuickDrop
+                            </Button>
+                        </div>
+                    </div>
+                </Transition>
+            </Card>
+        </div>
+
+        <!-- Success Modal -->
+        <Modal
+            :show="showSuccessModal"
+            @close="showSuccessModal = false"
+            title="QuickDrop Created Successfully!"
+            size="lg"
+        >
+            <div class="text-center mb-6">
+                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center animate-pulse-glow">
+                    <Icon name="check" :size="40" class="text-white" />
+                </div>
+                <p class="text-text-secondary">
+                    Your QuickDrop is ready! Share the link below to start collecting files.
+                </p>
+            </div>
+
+            <div v-if="createdUrl" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-primary mb-2">
+                        Share Link
+                    </label>
+                    <div class="flex space-x-2">
+                        <input
+                            :value="createdUrl"
+                            readonly
+                            class="flex-1 px-4 py-2 rounded-lg bg-surface border border-white/10 text-text-primary text-sm"
+                        />
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            icon="copy"
+                            @click="copyToClipboard(createdUrl)"
+                        >
+                            {{ copySuccess ? 'Copied!' : 'Copy' }}
+                        </Button>
                     </div>
                 </div>
+                
+                <div v-if="encryptionKey" class="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <h3 class="font-medium text-amber-400 mb-2">
+                        <Icon name="alertTriangle" :size="16" class="inline mr-1" />
+                        Important: Save Your Encryption Key
+                    </h3>
+                    <div class="flex space-x-2 mb-2">
+                        <input
+                            :value="encryptionKey"
+                            readonly
+                            class="flex-1 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-mono"
+                        />
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            icon="copy"
+                            @click="copyToClipboard(encryptionKey)"
+                        >
+                            Copy Key
+                        </Button>
+                    </div>
+                    <p class="text-xs text-amber-400">
+                        This key is required to decrypt uploaded files. Store it securely and share only with intended recipients.
+                    </p>
+                </div>
             </div>
-        </div>
-    </AuthenticatedLayout>
-</template> 
+            
+            <template #footer>
+                <div class="flex space-x-3">
+                    <Button variant="ghost" @click="showSuccessModal = false">
+                        Close
+                    </Button>
+                    <Button variant="primary" @click="redirectToQuickDrop">
+                        Go to QuickDrop
+                    </Button>
+                </div>
+            </template>
+        </Modal>
+    </AppLayout>
+</template>
