@@ -1,3 +1,4 @@
+// FEAT-006: Client-Side Encryption - AES-GCM encryption implementation
 // Utility functions for encryption/decryption using Web Crypto API
 
 /**

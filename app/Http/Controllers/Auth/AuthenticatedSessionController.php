@@ -18,9 +18,12 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): Response
     {
+        // This login is for backstage administrators only
+        // Regular users should use the QuickDrop magic link login
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status'           => session('status'),
+            'isBackstageLogin' => true,
         ]);
     }
 
@@ -33,7 +36,24 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Get the authenticated user
+        $user = Auth::user();
+        
+        // Log for debugging
+        \Log::info('User logged in', [
+            'user_id' => $user->id ?? null,
+            'email' => $user->email ?? null,
+            'is_admin' => $user->is_admin ?? null,
+        ]);
+
+        // Redirect backstage users to backstage dashboard
+        if ($user && $user->is_admin) {
+            return redirect()->route('backstage.dashboard');
+        }
+        
+        // Non-admin users shouldn't be using this login
+        Auth::guard('web')->logout();
+        return redirect()->route('quickdrop.login')->with('error', 'Please use the QuickDrop login.');
     }
 
     /**

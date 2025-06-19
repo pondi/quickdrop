@@ -65,10 +65,10 @@ const props = defineProps({
 const variantClasses = computed(() => {
     const variants = {
         primary: 'gradient-button text-white focus:ring-primary',
-        secondary: 'bg-gradient-secondary text-white hover:opacity-90 focus:ring-secondary rounded-xl',
-        ghost: 'bg-transparent text-text-primary hover:bg-surface-hover focus:ring-white/20 rounded-xl',
-        outline: 'bg-transparent border border-glass text-text-primary hover:bg-surface-hover focus:ring-white/20 rounded-xl',
-        danger: 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-500 rounded-xl'
+        secondary: 'bg-gradient-secondary text-primary-end hover:opacity-90 focus:ring-secondary rounded-xl',
+        ghost: 'bg-transparent text-text-primary hover:bg-surface-hover focus:ring-primary/20 rounded-xl',
+        outline: 'bg-transparent border border-glass text-text-primary hover:bg-surface-hover focus:ring-primary/20 rounded-xl',
+        danger: 'bg-gradient-accent text-white hover:opacity-90 focus:ring-accent rounded-xl'
     }
     return variants[props.variant]
 })

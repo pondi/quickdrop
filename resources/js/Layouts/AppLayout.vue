@@ -17,11 +17,14 @@
                             <NavItem :href="route('dashboard')" :active="route().current('dashboard')">
                                 Dashboard
                             </NavItem>
-                            <NavItem :href="route('quick-drops.index')" :active="route().current('quick-drops.*')">
+                            <NavItem :href="route('quickdrop.index')" :active="route().current('quickdrop.*')">
                                 My Drops
                             </NavItem>
-                            <NavItem :href="route('quick-drops.create')" :active="route().current('quick-drops.create')">
+                            <NavItem :href="route('quickdrop.create')" :active="route().current('quickdrop.create')">
                                 New Drop
+                            </NavItem>
+                            <NavItem :href="route('storage-analytics.index')" :active="route().current('storage-analytics.*')">
+                                Storage
                             </NavItem>
                         </div>
                     </div>
@@ -94,15 +97,20 @@
                           :class="{ 'bg-surface-hover': route().current('dashboard') }">
                         Dashboard
                     </Link>
-                    <Link :href="route('quick-drops.index')" 
+                    <Link :href="route('quickdrop.index')" 
                           class="px-4 py-3 rounded-lg hover:bg-surface-hover transition-colors duration-fast"
-                          :class="{ 'bg-surface-hover': route().current('quick-drops.*') }">
+                          :class="{ 'bg-surface-hover': route().current('quickdrop.*') }">
                         My Drops
                     </Link>
-                    <Link :href="route('quick-drops.create')" 
+                    <Link :href="route('quickdrop.create')" 
                           class="px-4 py-3 rounded-lg hover:bg-surface-hover transition-colors duration-fast"
-                          :class="{ 'bg-surface-hover': route().current('quick-drops.create') }">
+                          :class="{ 'bg-surface-hover': route().current('quickdrop.create') }">
                         New Drop
+                    </Link>
+                    <Link :href="route('storage-analytics.index')" 
+                          class="px-4 py-3 rounded-lg hover:bg-surface-hover transition-colors duration-fast"
+                          :class="{ 'bg-surface-hover': route().current('storage-analytics.*') }">
+                        Storage Analytics
                     </Link>
                 </div>
             </div>
@@ -110,7 +118,9 @@
         
         <main class="pt-24 px-4 pb-8">
             <div class="max-w-7xl mx-auto">
-                <slot />
+                <PageTransition>
+                    <slot />
+                </PageTransition>
             </div>
         </main>
         
@@ -122,17 +132,68 @@
                              :message="notification.message" />
             </TransitionGroup>
         </Teleport>
+        
+        <!-- Floating Action Button -->
+        <FloatingActionButton
+            :icon="PlusIcon"
+            :actions="fabActions"
+            :pulse="true"
+            :hide-on-scroll="true"
+            position="bottom-right"
+            @action="(action) => action.handler && action.handler()"
+        />
+        
+        <!-- Offline Indicator -->
+        <OfflineIndicator />
     </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import Dropdown from '@/Components/Dropdown.vue'
 import DropdownLink from '@/Components/DropdownLink.vue'
 import Notification from '@/Components/Notification.vue'
+import FloatingActionButton from '@/Components/App/FloatingActionButton.vue'
+import PageTransition from '@/Components/App/PageTransition.vue'
+import OfflineIndicator from '@/Components/App/OfflineIndicator.vue'
+import { 
+  PlusIcon,
+  FolderOpenIcon,
+  CameraIcon,
+  DocumentIcon,
+  CloudArrowUpIcon
+} from '@heroicons/vue/24/outline'
 
 const showMobileMenu = ref(false)
+
+// FAB actions
+const fabActions = [
+  {
+    id: 'quick-upload',
+    label: 'Quick Upload',
+    icon: CloudArrowUpIcon,
+    class: 'bg-indigo-500 text-white',
+    handler: () => router.visit(route('quickdrop.create'))
+  },
+  {
+    id: 'from-camera',
+    label: 'From Camera',
+    icon: CameraIcon,
+    class: 'bg-purple-500 text-white',
+    handler: () => {
+      // Trigger camera upload
+      console.log('Camera upload')
+    }
+  },
+  {
+    id: 'browse-files',
+    label: 'Browse Files',
+    icon: FolderOpenIcon,
+    class: 'bg-blue-500 text-white',
+    handler: () => router.visit(route('quickdrop.index'))
+  }
+]
 
 const NavItem = {
     props: ['href', 'active'],

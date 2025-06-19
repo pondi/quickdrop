@@ -1,3 +1,4 @@
+<!-- FEAT-010: User Dashboard - Statistics and activity display -->
 <script setup>
 import { ref, computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -6,6 +7,7 @@ import Button from '@/Components/App/Button.vue';
 import Icon from '@/Components/App/Icon.vue';
 import ProgressRing from '@/Components/App/ProgressRing.vue';
 import FileCard from '@/Components/App/FileCard.vue';
+import BottomSheet from '@/Components/App/BottomSheet.vue';
 import { Head, Link } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -15,6 +17,10 @@ const props = defineProps({
     activeRequests: Number,
     monthlyStats: Object,
 });
+
+// State
+const showActivitySheet = ref(false);
+const selectedActivity = ref(null);
 
 const storageLimit = 5 * 1024 * 1024 * 1024; // 5GB
 const storagePercentage = computed(() => {
@@ -51,7 +57,7 @@ const statsCards = computed(() => [
         title: 'Total Uploads',
         value: props.totalUploads,
         icon: 'upload',
-        gradient: 'from-primary-start to-primary-end',
+        gradient: 'bg-gradient-primary',
         change: '+12%',
         trend: 'up'
     },
@@ -59,7 +65,7 @@ const statsCards = computed(() => [
         title: 'Active Shares',
         value: props.activeRequests,
         icon: 'share2',
-        gradient: 'from-secondary-start to-secondary-end',
+        gradient: 'bg-gradient-secondary',
         change: '+5%',
         trend: 'up'
     },
@@ -67,7 +73,7 @@ const statsCards = computed(() => [
         title: 'This Month',
         value: props.monthlyStats?.uploads || 0,
         icon: 'calendar',
-        gradient: 'from-green-400 to-green-600',
+        gradient: 'bg-gradient-to-br from-green-400 to-green-600',
         change: '+23%',
         trend: 'up'
     },
@@ -75,11 +81,17 @@ const statsCards = computed(() => [
         title: 'Total Downloads',
         value: props.monthlyStats?.downloads || 0,
         icon: 'download',
-        gradient: 'from-amber-400 to-amber-600',
+        gradient: 'bg-gradient-to-br from-amber-400 to-amber-600',
         change: '+18%',
         trend: 'up'
     }
 ]);
+
+// Methods
+const showActivityDetails = (request) => {
+    selectedActivity.value = request;
+    showActivitySheet.value = true;
+};
 </script>
 
 <template>
@@ -99,25 +111,20 @@ const statsCards = computed(() => [
 
             <!-- Quick Actions -->
             <div class="flex justify-center space-x-4 mb-8">
-                <Button
-                    variant="primary"
-                    size="lg"
-                    icon="upload"
-                    as="Link"
-                    :href="route('quick-drops.create')"
-                    class="animate-pulse-glow"
+                <Link
+                    :href="route('quickdrop.create')"
+                    class="gradient-button text-white focus:ring-primary px-6 py-3 text-lg rounded-xl animate-pulse-glow inline-flex items-center space-x-2"
                 >
-                    Create New Drop
-                </Button>
-                <Button
-                    variant="outline"
-                    size="lg"
-                    icon="folder"
-                    as="Link"
-                    :href="route('quick-drops.index')"
+                    <Icon name="upload" :size="24" />
+                    <span>Create New Drop</span>
+                </Link>
+                <Link
+                    :href="route('quickdrop.index')"
+                    class="bg-transparent border border-glass text-text-primary hover:bg-surface-hover focus:ring-primary/20 rounded-xl px-6 py-3 text-lg inline-flex items-center space-x-2"
                 >
-                    View All Drops
-                </Button>
+                    <Icon name="folder" :size="24" />
+                    <span>View All Drops</span>
+                </Link>
             </div>
 
             <!-- Stats Grid -->
@@ -148,8 +155,7 @@ const statsCards = computed(() => [
                             </div>
                         </div>
                         <div 
-                            class="w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center transform group-hover:rotate-12 transition-transform"
-                            :class="stat.gradient"
+                            :class="['w-12 h-12 rounded-xl flex items-center justify-center transform group-hover:rotate-12 transition-transform', stat.gradient]"
                         >
                             <Icon :name="stat.icon" :size="24" class="text-white" />
                         </div>
@@ -186,7 +192,7 @@ const statsCards = computed(() => [
                                     {{ formatBytes(storageUsed) }} / {{ formatBytes(storageLimit) }}
                                 </span>
                             </div>
-                            <div class="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                            <div class="w-full bg-gray-200/30 rounded-full h-2 overflow-hidden">
                                 <div 
                                     class="h-full bg-gradient-primary transition-all duration-500"
                                     :style="{ width: `${storagePercentage}%` }"
@@ -196,15 +202,15 @@ const statsCards = computed(() => [
                         
                         <div class="grid grid-cols-3 gap-4 text-center">
                             <div>
-                                <p class="text-2xl font-bold gradient-text">{{ totalUploads }}</p>
+                                <p class="text-2xl font-bold gradient-text">{{ props.totalUploads }}</p>
                                 <p class="text-xs text-text-secondary">Total Files</p>
                             </div>
                             <div>
-                                <p class="text-2xl font-bold gradient-text">{{ activeRequests }}</p>
+                                <p class="text-2xl font-bold gradient-text">{{ props.activeRequests }}</p>
                                 <p class="text-xs text-text-secondary">Active Shares</p>
                             </div>
                             <div>
-                                <p class="text-2xl font-bold gradient-text">{{ formatBytes(storageUsed) }}</p>
+                                <p class="text-2xl font-bold gradient-text">{{ formatBytes(props.storageUsed) }}</p>
                                 <p class="text-xs text-text-secondary">Used Space</p>
                             </div>
                         </div>
@@ -218,7 +224,7 @@ const statsCards = computed(() => [
                     <div class="flex items-center justify-between">
                         <h3 class="text-xl font-semibold text-text-primary">Recent Activity</h3>
                         <Link 
-                            :href="route('quick-drops.index')" 
+                            :href="route('quickdrop.index')" 
                             class="text-sm text-primary hover:text-primary-end transition-colors"
                         >
                             View all →
@@ -232,6 +238,7 @@ const statsCards = computed(() => [
                         :key="request.id"
                         class="p-4 rounded-xl bg-surface hover:bg-surface-hover transition-all cursor-pointer group"
                         :data-index="index"
+                        @click="showActivityDetails(request)"
                     >
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-4">
@@ -256,9 +263,9 @@ const statsCards = computed(() => [
                                 <span 
                                     class="px-3 py-1 rounded-full text-xs font-medium"
                                     :class="{
-                                        'bg-green-500/20 text-green-400': request.status === 'active',
-                                        'bg-amber-500/20 text-amber-400': request.status === 'pending',
-                                        'bg-red-500/20 text-red-400': request.status === 'expired'
+                                        'bg-green-500/20 text-green-600': request.status === 'active',
+                                        'bg-amber-500/20 text-amber-600': request.status === 'pending',
+                                        'bg-red-500/20 text-red-600': request.status === 'expired'
                                     }"
                                 >
                                     {{ request.status }}
@@ -278,18 +285,94 @@ const statsCards = computed(() => [
                         <Icon name="inbox" :size="32" class="text-text-muted" />
                     </div>
                     <p class="text-text-secondary mb-4">No recent activity</p>
-                    <Button
-                        variant="primary"
-                        size="sm"
-                        icon="plus"
-                        as="Link"
-                        :href="route('quick-drops.create')"
+                    <Link
+                        :href="route('quickdrop.create')"
+                        class="gradient-button text-white focus:ring-primary px-3 py-1.5 text-sm rounded-xl inline-flex items-center space-x-2"
                     >
-                        Create your first drop
-                    </Button>
+                        <Icon name="plus" :size="16" />
+                        <span>Create your first drop</span>
+                    </Link>
                 </div>
             </Card>
         </div>
+        
+        <!-- Activity Details Bottom Sheet -->
+        <BottomSheet
+            :is-open="showActivitySheet"
+            @close="showActivitySheet = false"
+            :title="selectedActivity?.title"
+            :snap-points="[0.5, 0.9]"
+            height="auto"
+        >
+            <div v-if="selectedActivity" class="space-y-6">
+                <!-- Status Badge -->
+                <div class="flex items-center justify-between">
+                    <span 
+                        class="px-4 py-2 rounded-full text-sm font-medium"
+                        :class="{
+                            'bg-green-500/20 text-green-600': selectedActivity.status === 'active',
+                            'bg-amber-500/20 text-amber-600': selectedActivity.status === 'pending',
+                            'bg-red-500/20 text-red-600': selectedActivity.status === 'expired'
+                        }"
+                    >
+                        {{ selectedActivity.status }}
+                    </span>
+                    <span class="text-sm text-text-secondary">
+                        Created {{ formatDate(selectedActivity.created_at) }}
+                    </span>
+                </div>
+                
+                <!-- Details -->
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between py-3 border-b border-gray-200/20">
+                        <span class="text-sm text-text-secondary">Files</span>
+                        <span class="text-sm font-medium text-text-primary">
+                            {{ selectedActivity.files_count }} files
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between py-3 border-b border-gray-200/20">
+                        <span class="text-sm text-text-secondary">Total Size</span>
+                        <span class="text-sm font-medium text-text-primary">
+                            {{ formatBytes(selectedActivity.total_size || 0) }}
+                        </span>
+                    </div>
+                    
+                    <div v-if="selectedActivity.reference_number" class="flex items-center justify-between py-3 border-b border-gray-200/20">
+                        <span class="text-sm text-text-secondary">Reference</span>
+                        <span class="text-sm font-mono text-text-primary">
+                            {{ selectedActivity.reference_number }}
+                        </span>
+                    </div>
+                    
+                    <div v-if="selectedActivity.expires_at" class="flex items-center justify-between py-3 border-b border-gray-200/20">
+                        <span class="text-sm text-text-secondary">Expires</span>
+                        <span class="text-sm font-medium text-text-primary">
+                            {{ formatDate(selectedActivity.expires_at) }}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="flex space-x-3 pt-4">
+                    <Link
+                        :href="selectedActivity?.upload_url || '#'"
+                        class="gradient-button text-white focus:ring-primary px-3 py-1.5 text-sm rounded-xl inline-flex items-center justify-center space-x-2 flex-1"
+                    >
+                        <Icon name="eye" :size="16" />
+                        <span>View Details</span>
+                    </Link>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        icon="share2"
+                        class="flex-1"
+                    >
+                        Share
+                    </Button>
+                </div>
+            </div>
+        </BottomSheet>
     </AppLayout>
 </template>
 

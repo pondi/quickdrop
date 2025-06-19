@@ -16,6 +16,7 @@ class UploadObject extends Model
 
     protected $fillable = [
         'owner_id',
+        'quickdrop_owner_id',
         'original_name',
         'stored_name',
         'storage_path',
@@ -41,6 +42,11 @@ class UploadObject extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function quickDropOwner(): BelongsTo
+    {
+        return $this->belongsTo(QuickDropUser::class, 'quickdrop_owner_id');
     }
 
     public function uploadRequests(): BelongsToMany
@@ -86,6 +92,7 @@ class UploadObject extends Model
         return $this->hasMany(self::class, 'original_file_id');
     }
 
+    // FEAT-005: File Versioning - Get latest version of file
     public function getLatestVersion()
     {
         return $this->versions()
@@ -93,11 +100,13 @@ class UploadObject extends Model
             ->first() ?? $this;
     }
 
+    // FEAT-005: File Versioning - Calculate next version number
     public function getNextVersion(): int
     {
         return ($this->versions()->max('version') ?? 0) + 1;
     }
 
+    // FEAT-005: File Versioning - Check if this is the original version
     public function isOriginalVersion(): bool
     {
         return $this->original_file_id === null;

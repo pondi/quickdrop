@@ -19,6 +19,8 @@ class DownloadService
     ) {
     }
 
+    // FEAT-003: File Download - Route to appropriate download method
+    // FEAT-004: Bulk Download (ZIP) - When fileUuid is null
     public function getDownloadResponse(UploadRequest $request, ?string $fileUuid = null)
     {
         if ($fileUuid) {
@@ -39,6 +41,8 @@ class DownloadService
         return $this->getZipResponse($request);
     }
 
+    // FEAT-003: File Download - Single file download
+    // FEAT-015: Multi-Storage Support - Handle S3 and local storage
     private function getSingleFileResponse(UploadObject $file)
     {
         if ($this->isS3Storage()) {
@@ -52,6 +56,7 @@ class DownloadService
         );
     }
 
+    // FEAT-006: Client-Side Encryption - Handle encrypted file downloads
     private function getEncryptedFileResponse(UploadObject $file)
     {
         // For encrypted files, we always stream through our server to ensure security
@@ -84,6 +89,7 @@ class DownloadService
         return redirect()->away($temporaryUrl);
     }
 
+    // FEAT-004: Bulk Download (ZIP) - Create ZIP archive for multiple files
     private function getZipResponse(UploadRequest $request)
     {
         $zipName = "quickdrop-{$request->unique_request_id}.zip";

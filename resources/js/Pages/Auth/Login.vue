@@ -22,6 +22,12 @@ const form = useForm({
 const submit = () => {
     form.post(route('login'), {
         onFinish: () => form.reset('password'),
+        onSuccess: () => {
+            console.log('Login successful');
+        },
+        onError: (errors) => {
+            console.log('Login errors:', errors);
+        }
     });
 };
 </script>
@@ -39,10 +45,13 @@ const submit = () => {
 
         <div class="text-center mb-8">
             <h2 class="text-2xl font-display font-bold text-text-primary mb-2">
-                Welcome back
+                Backstage Login
             </h2>
             <p class="text-text-secondary">
-                Sign in to your account to continue
+                Administrator access only
+            </p>
+            <p class="text-sm text-text-secondary mt-2">
+                Regular users should <Link :href="route('quickdrop.login')" class="text-primary hover:text-primary-end">use QuickDrop login</Link>
             </p>
         </div>
 

@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\FileTypeSetting;
 
 class UploadRequest extends Model
 {
@@ -15,6 +17,7 @@ class UploadRequest extends Model
 
     protected $fillable = [
         'requesting_user_id',
+        'quickdrop_user_id',
         'unique_request_id',
         'verification_token',
         'expires_at',
@@ -38,16 +41,38 @@ class UploadRequest extends Model
         return $this->belongsTo(User::class, 'requesting_user_id');
     }
 
+    public function quickDropUser(): BelongsTo
+    {
+        return $this->belongsTo(QuickDropUser::class, 'quickdrop_user_id');
+    }
+
     public function uploadObjects(): BelongsToMany
     {
         return $this->belongsToMany(UploadObject::class, 'upload_request_upload_object');
     }
 
+    public function views(): HasMany
+    {
+        return $this->hasMany(QuickDropView::class);
+    }
+
+    public function analytics(): HasMany
+    {
+        return $this->hasMany(ShareAnalytic::class);
+    }
+
+    public function emailNotificationLogs(): HasMany
+    {
+        return $this->hasMany(EmailNotificationLog::class);
+    }
+
+    // FEAT-008: Expiration Management - Check if request has expired
     public function isExpired(): bool
     {
         return $this->expires_at->isPast();
     }
 
+    // FEAT-008: Expiration Management - Check if request is active
     public function isActive(): bool
     {
         return $this->status === 'active' && !$this->isExpired();
@@ -78,5 +103,17 @@ class UploadRequest extends Model
         }
 
         return in_array($mimeType, $this->allowed_mime_types);
+    }
+    
+    // Get allowed mime types from dynamic file type settings
+    public function getAllowedMimeTypesAttribute(): array
+    {
+        // Check if FileTypeSetting table exists
+        if (!\Schema::hasTable('file_type_settings')) {
+            // Fall back to config if table doesn't exist yet
+            return config('quickdrop.allowed_mime_types', []);
+        }
+        
+        return FileTypeSetting::getAllowedMimeTypes();
     }
 }

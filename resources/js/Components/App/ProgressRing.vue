@@ -18,7 +18,7 @@
                 :r="radius"
                 :stroke-width="strokeWidth"
                 fill="none"
-                stroke="rgba(255, 255, 255, 0.1)"
+                stroke="rgba(69, 123, 157, 0.2)"
             />
             
             <circle
@@ -74,11 +74,11 @@ const props = defineProps({
     },
     gradientStart: {
         type: String,
-        default: '#667eea'
+        default: '#457B9D'
     },
     gradientEnd: {
         type: String,
-        default: '#764ba2'
+        default: '#1D3557'
     }
 })
 

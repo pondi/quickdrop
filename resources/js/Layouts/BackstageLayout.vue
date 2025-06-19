@@ -3,7 +3,7 @@
         <aside class="admin-sidebar w-64 flex-shrink-0 fixed left-0 top-0 bottom-0 z-40">
             <div class="h-full flex flex-col">
                 <div class="p-4 border-b border-white/10">
-                    <Link :href="route('admin.dashboard')" class="flex items-center space-x-3">
+                    <Link :href="route('backstage.dashboard')" class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -11,13 +11,13 @@
                         </div>
                         <div>
                             <h2 class="text-lg font-semibold text-white">QuickDrop</h2>
-                            <p class="text-xs text-white/60">Admin Panel</p>
+                            <p class="text-xs text-white/60">Backstage</p>
                         </div>
                     </Link>
                 </div>
                 
                 <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <SidebarItem :href="route('admin.dashboard')" :active="route().current('admin.dashboard')">
+                    <SidebarItem :href="route('backstage.dashboard')" :active="route().current('backstage.dashboard')">
                         <template #icon>
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -26,16 +26,25 @@
                         Dashboard
                     </SidebarItem>
                     
-                    <SidebarItem :href="route('admin.users.index')" :active="route().current('admin.users.*')">
+                    <SidebarItem :href="route('backstage.users.index')" :active="route().current('backstage.users.*')">
                         <template #icon>
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
                         </template>
-                        Users
+                        Backstage Users
                     </SidebarItem>
                     
-                    <SidebarItem :href="route('admin.quick-drops.index')" :active="route().current('admin.quick-drops.*')">
+                    <SidebarItem :href="route('backstage.quickdrop-users.index')" :active="route().current('backstage.quickdrop-users.*')">
+                        <template #icon>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        </template>
+                        QuickDrop Users
+                    </SidebarItem>
+                    
+                    <SidebarItem :href="route('backstage.quickdrops.index')" :active="route().current('backstage.quickdrops.*')">
                         <template #icon>
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -44,7 +53,7 @@
                         QuickDrops
                     </SidebarItem>
                     
-                    <SidebarItem :href="route('admin.audit-log.index')" :active="route().current('admin.audit-log.*')">
+                    <SidebarItem :href="route('backstage.audit-log.index')" :active="route().current('backstage.audit-log.*')">
                         <template #icon>
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -54,7 +63,16 @@
                     </SidebarItem>
                     
                     <div class="pt-4 mt-4 border-t border-white/10">
-                        <SidebarItem :href="route('admin.settings.index')" :active="route().current('admin.settings.*')">
+                        <SidebarItem :href="route('backstage.file-types.index')" :active="route().current('backstage.file-types.*')">
+                            <template #icon>
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                </svg>
+                            </template>
+                            File Types
+                        </SidebarItem>
+                        
+                        <SidebarItem :href="route('backstage.settings.index')" :active="route().current('backstage.settings.*')">
                             <template #icon>
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />

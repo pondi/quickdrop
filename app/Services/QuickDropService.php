@@ -39,6 +39,9 @@ class QuickDropService
         }
     }
 
+    // FEAT-002: File Upload System - Process file upload with deduplication
+    // FEAT-005: File Versioning - Handle version management
+    // FEAT-016: File Hash Tracking - Calculate and store file hash
     public function handleFileUpload(
         UploadRequest $request,
         UploadedFile $file,
@@ -117,6 +120,11 @@ class QuickDropService
         return $uploadObject;
     }
 
+    // FEAT-001: QuickDrop Creation - Create new upload request
+    // FEAT-006: Client-Side Encryption - Store encryption metadata
+    // FEAT-007: Reference Number Validation - Store reference number
+    // FEAT-008: Expiration Management - Set expiration time
+    // FEAT-014: Public Download Control - Set public permissions
     public function createUploadRequest(
         int $userId,
         string $title,

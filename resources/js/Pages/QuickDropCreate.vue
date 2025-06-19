@@ -39,6 +39,7 @@ const createdUrl = ref(null);
 const encryptionKey = ref(null);
 const showSuccessModal = ref(false);
 const copySuccess = ref(false);
+const isAdvancedMode = ref(false);
 
 const stepProgress = computed(() => {
     return (currentStep.value / totalSteps) * 100;
@@ -87,14 +88,14 @@ const submit = async () => {
         encryptionKey.value = clientEncryptionKey;
     }
     
-    form.post(route('quick-drops.store'), {
+    form.post(route('quickdrop.store'), {
         preserveScroll: true,
         onSuccess: (response) => {
             const urlParts = response.url.split('/');
             const uniqueRequestId = urlParts[urlParts.length - 1];
             
             if (uniqueRequestId) {
-                createdUrl.value = route('quick-drops.show', uniqueRequestId);
+                createdUrl.value = route('quickdrop.show', uniqueRequestId);
                 
                 if (form.use_encryption && clientEncryptionKey) {
                     const storageKey = `quickdrop_key_${uniqueRequestId}`;
@@ -136,6 +137,10 @@ const redirectToQuickDrop = () => {
 };
 </script>
 
+<!-- FEAT-001: QuickDrop Creation - Multi-step wizard interface -->
+<!-- FEAT-006: Client-Side Encryption - Encryption options -->
+<!-- FEAT-007: Reference Number Validation - Reference input -->
+<!-- FEAT-008: Expiration Management - Time selection -->
 <template>
     <Head title="Create New QuickDrop" />
 
@@ -151,16 +156,16 @@ const redirectToQuickDrop = () => {
                 </p>
             </div>
 
-            <!-- Progress Indicator -->
-            <Card>
-                <div class="flex items-center justify-center mb-6">
+            <!-- Progress Indicator - Only show in advanced mode -->
+            <Card v-if="isAdvancedMode">
+                <div class="flex items-center justify-center mb-6 relative">
                     <ProgressRing 
                         :value="stepProgress" 
                         :size="100"
                         :stroke-width="6"
                         :show-percentage="false"
                     />
-                    <div class="absolute">
+                    <div class="absolute inset-0 flex items-center justify-center">
                         <span class="text-lg font-bold text-text-primary">{{ currentStep }}/{{ totalSteps }}</span>
                     </div>
                 </div>
@@ -192,19 +197,145 @@ const redirectToQuickDrop = () => {
                 </div>
             </Card>
 
-            <!-- Form Steps -->
+            <!-- Form -->
             <Card class="min-h-96">
-                <Transition
-                    enter-active-class="transition ease-out duration-300"
-                    enter-from-class="opacity-0 transform translate-x-4"
-                    enter-to-class="opacity-100 transform translate-x-0"
-                    leave-active-class="transition ease-in duration-200"
-                    leave-from-class="opacity-100 transform translate-x-0"
-                    leave-to-class="opacity-0 transform -translate-x-4"
-                    mode="out-in"
-                >
-                    <!-- Step 1: Basic Info -->
-                    <div v-if="currentStep === 1" key="step1" class="space-y-6">
+                <!-- Simple Mode -->
+                <div v-if="!isAdvancedMode" class="space-y-6">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center">
+                            <Icon name="zap" :size="32" class="text-white" />
+                        </div>
+                        <h2 class="text-2xl font-semibold text-text-primary mb-2">Quick Setup</h2>
+                        <p class="text-text-secondary">Create a QuickDrop in seconds</p>
+                    </div>
+
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-text-primary mb-2">
+                            QuickDrop Title <span class="text-red-400">*</span>
+                        </label>
+                        <input
+                            id="title"
+                            v-model="form.title"
+                            type="text"
+                            required
+                            class="w-full px-4 py-3 rounded-xl bg-surface border border-white/10 text-text-primary placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                            :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/20': form.errors.title }"
+                            placeholder="My Project Files"
+                        />
+                        <p v-if="form.errors.title" class="mt-2 text-sm text-red-400">
+                            {{ form.errors.title }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="comment" class="block text-sm font-medium text-text-primary mb-2">
+                            Description
+                        </label>
+                        <textarea
+                            id="comment"
+                            v-model="form.comment"
+                            rows="3"
+                            class="w-full px-4 py-3 rounded-xl bg-surface border border-white/10 text-text-primary placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                            :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/20': form.errors.comment }"
+                            placeholder="Add any additional information..."
+                        />
+                        <p v-if="form.errors.comment" class="mt-2 text-sm text-red-400">
+                            {{ form.errors.comment }}
+                        </p>
+                    </div>
+
+                    <div v-if="props.config?.reference_number?.enabled">
+                        <label for="reference_number" class="block text-sm font-medium text-text-primary mb-2">
+                            {{ props.config.reference_number?.label || 'Reference Number' }}
+                            <span v-if="props.config.reference_number?.required" class="text-red-400">*</span>
+                        </label>
+                        <input
+                            id="reference_number"
+                            v-model="form.reference_number"
+                            type="text"
+                            :required="props.config.reference_number?.required"
+                            class="w-full px-4 py-3 rounded-xl bg-surface border border-white/10 text-text-primary placeholder-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                            :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/20': form.errors.reference_number }"
+                            :placeholder="props.config.reference_number?.help_text || 'Enter reference number'"
+                        />
+                        <p v-if="form.errors.reference_number" class="mt-2 text-sm text-red-400">
+                            {{ form.errors.reference_number }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="expires_in_minutes" class="block text-sm font-medium text-text-primary mb-2">
+                            Expiration Time
+                        </label>
+                        <select
+                            v-model.number="form.expires_in_minutes"
+                            id="expires_in_minutes"
+                            class="w-full px-4 py-3 rounded-xl bg-surface border border-white/10 text-text-primary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                            :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/20': form.errors.expires_in_minutes }"
+                        >
+                            <option v-for="option in expirationOptions" :key="option.value" :value="option.value">
+                                {{ option.label }}
+                            </option>
+                        </select>
+                        <p v-if="form.errors.expires_in_minutes" class="mt-2 text-sm text-red-400">
+                            {{ form.errors.expires_in_minutes }}
+                        </p>
+                        <p class="mt-2 text-xs text-text-muted">
+                            <Icon name="info" :size="12" class="inline mr-1" />
+                            Files will be automatically deleted after this time
+                        </p>
+                    </div>
+
+                    <div class="pt-4 border-t border-white/10">
+                        <button
+                            type="button"
+                            @click="isAdvancedMode = true"
+                            class="text-primary hover:text-primary-light transition-colors text-sm font-medium flex items-center gap-2 mx-auto"
+                        >
+                            <Icon name="settings" :size="16" />
+                            Advanced Settings
+                        </button>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <Button
+                            variant="primary"
+                            size="lg"
+                            @click="submit"
+                            :loading="isSubmitting"
+                            :disabled="!form.title.trim() || (props.config?.reference_number?.required && !form.reference_number.trim())"
+                            class="flex-1"
+                        >
+                            Create QuickDrop
+                        </Button>
+                    </div>
+                </div>
+
+                <!-- Advanced Mode - Multi-step wizard -->
+                <div v-if="isAdvancedMode">
+                    <!-- Exit Advanced Mode Button -->
+                    <div class="mb-6 flex justify-end">
+                        <button
+                            type="button"
+                            @click="isAdvancedMode = false; currentStep = 1"
+                            class="text-text-secondary hover:text-text-primary transition-colors text-sm font-medium flex items-center gap-2"
+                        >
+                            <Icon name="x" :size="16" />
+                            Exit Advanced Mode
+                        </button>
+                    </div>
+
+                    <Transition
+                        enter-active-class="transition ease-out duration-300"
+                        enter-from-class="opacity-0 transform translate-x-4"
+                        enter-to-class="opacity-100 transform translate-x-0"
+                        leave-active-class="transition ease-in duration-200"
+                        leave-from-class="opacity-100 transform translate-x-0"
+                        leave-to-class="opacity-0 transform -translate-x-4"
+                        mode="out-in"
+                    >
+                        <!-- Step 1: Basic Info -->
+                        <div v-if="currentStep === 1" key="step1" class="space-y-6">
                         <div class="text-center mb-8">
                             <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary flex items-center justify-center">
                                 <Icon name="edit3" :size="32" class="text-white" />
@@ -297,7 +428,7 @@ const redirectToQuickDrop = () => {
                                 Expiration Time
                             </label>
                             <select
-                                v-model="form.expires_in_minutes"
+                                v-model.number="form.expires_in_minutes"
                                 id="expires_in_minutes"
                                 class="w-full px-4 py-3 rounded-xl bg-surface border border-white/10 text-text-primary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                                 :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/20': form.errors.expires_in_minutes }"
@@ -509,7 +640,8 @@ const redirectToQuickDrop = () => {
                             </Button>
                         </div>
                     </div>
-                </Transition>
+                    </Transition>
+                </div>
             </Card>
         </div>
 

@@ -10,6 +10,7 @@ use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
+    // FEAT-010: User Dashboard - Display user statistics and recent activity
     public function index()
     {
         $user = Auth::user();

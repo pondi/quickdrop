@@ -1,3 +1,5 @@
+<!-- FEAT-002: File Upload System - Drag-and-drop interface with duplicate detection -->
+<!-- FEAT-016: File Hash Tracking - Client-side hash calculation -->
 <template>
     <div class="dropzone-container">
         <div

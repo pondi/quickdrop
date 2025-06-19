@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Card from '@/Components/App/Card.vue';
 import Button from '@/Components/App/Button.vue';
@@ -8,6 +8,7 @@ import Icon from '@/Components/App/Icon.vue';
 import ProgressRing from '@/Components/App/ProgressRing.vue';
 import DropZone from '@/Components/App/DropZone.vue';
 import Modal from '@/Components/App/Modal.vue';
+import ShareLinkModal from '@/Components/ShareLinkModal.vue';
 import axios from 'axios';
 import { decryptFile } from '@/Services/EncryptionService';
 import FileUploadZone from '@/Components/FileUploadZone.vue';
@@ -45,6 +46,9 @@ const isSuccessMessageExpanded = ref(true);
 const showSuccessMessage = ref(props.showNewBoxMessage);
 const showShareModal = ref(false);
 const copySuccess = ref(false);
+const shareUrl = ref('');
+const shareData = ref(null);
+const loadingShare = ref(false);
 
 const uploadRequestRef = ref(props.uploadRequest);
 watch(() => props.uploadRequest, (newVal) => {
@@ -167,8 +171,27 @@ const downloadAllFiles = async () => {
     }
 };
 
-const openShareModal = () => {
-    showShareModal.value = true;
+const openShareModal = async () => {
+    loadingShare.value = true;
+    
+    try {
+        const response = await axios.get(route('quickdrop.share-link', uploadRequestRef.value.unique_request_id));
+        shareUrl.value = response.data.share_url;
+        shareData.value = response.data;
+        showShareModal.value = true;
+    } catch (error) {
+        console.error('Failed to generate share link:', error);
+        // Fallback to using the current URL
+        shareUrl.value = currentUrl.value;
+        shareData.value = {
+            title: uploadRequestRef.value.title,
+            expires_at: uploadRequestRef.value.expires_at,
+            is_encrypted: uploadRequestRef.value.is_encrypted
+        };
+        showShareModal.value = true;
+    } finally {
+        loadingShare.value = false;
+    }
 };
 </script>
 
@@ -198,6 +221,14 @@ const openShareModal = () => {
                 </div>
                 
                 <div class="flex space-x-3">
+                    <Button
+                        variant="outline"
+                        icon="barChart"
+                        as="Link"
+                        :href="route('quickdrop.analytics', uploadRequestRef.unique_request_id)"
+                    >
+                        Analytics
+                    </Button>
                     <Button
                         variant="outline"
                         icon="share2"
@@ -445,64 +476,11 @@ const openShareModal = () => {
         </div>
 
         <!-- Share Modal -->
-        <Modal
+        <ShareLinkModal
             :show="showShareModal"
+            :share-url="shareUrl"
+            :share-data="shareData"
             @close="showShareModal = false"
-            title="Share QuickDrop Box"
-        >
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-text-primary mb-2">
-                        Upload Link
-                    </label>
-                    <div class="flex space-x-2">
-                        <input
-                            :value="currentUrl"
-                            readonly
-                            class="flex-1 px-4 py-2 rounded-lg bg-surface border border-white/10 text-text-primary text-sm"
-                        />
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            icon="copy"
-                            @click="copyToClipboard(currentUrl)"
-                        >
-                            {{ copySuccess ? 'Copied!' : 'Copy' }}
-                        </Button>
-                    </div>
-                </div>
-
-                <div v-if="encryptionKey" class="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <label class="block text-sm font-medium text-amber-400 mb-2">
-                        <Icon name="shield" :size="16" class="inline mr-1" />
-                        Encryption Key
-                    </label>
-                    <div class="flex space-x-2 mb-2">
-                        <input
-                            :value="encryptionKey"
-                            readonly
-                            class="flex-1 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-mono"
-                        />
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            icon="copy"
-                            @click="copyToClipboard(encryptionKey)"
-                        >
-                            Copy Key
-                        </Button>
-                    </div>
-                    <p class="text-xs text-amber-400">
-                        Share this key through a different channel for security
-                    </p>
-                </div>
-            </div>
-            
-            <template #footer>
-                <Button variant="ghost" @click="showShareModal = false">
-                    Close
-                </Button>
-            </template>
-        </Modal>
+        />
     </AppLayout>
 </template>

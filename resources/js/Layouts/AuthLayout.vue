@@ -1,7 +1,7 @@
 <template>
     <div class="min-h-screen bg-gradient-background flex flex-col items-center justify-center px-4 py-12">
         <div class="w-full max-w-md">
-            <Link :href="route('welcome')" class="flex items-center justify-center space-x-3 mb-8">
+            <Link :href="route('home')" class="flex items-center justify-center space-x-3 mb-8">
                 <div class="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center animate-pulse-glow">
                     <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />

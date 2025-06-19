@@ -18,9 +18,17 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = auth()->guard('quickdrop')->user();
+        
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status'          => session('status'),
+            'preferences'     => [
+                'notify_on_upload_complete' => $user->notify_on_upload_complete,
+                'notify_on_download' => $user->notify_on_download,
+                'notify_on_expiration_warning' => $user->notify_on_expiration_warning,
+                'notify_marketing' => $user->notify_marketing,
+            ],
         ]);
     }
 
@@ -38,6 +46,24 @@ class ProfileController extends Controller
         $request->user()->save();
 
         return Redirect::route('profile.edit');
+    }
+
+    /**
+     * Update the user's email preferences.
+     */
+    public function updateEmailPreferences(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'notify_on_upload_complete' => ['required', 'boolean'],
+            'notify_on_download' => ['required', 'boolean'],
+            'notify_on_expiration_warning' => ['required', 'boolean'],
+            'notify_marketing' => ['required', 'boolean'],
+        ]);
+
+        $user = auth()->guard('quickdrop')->user();
+        $user->update($validated);
+
+        return back()->with('status', 'email-preferences-updated');
     }
 
     /**

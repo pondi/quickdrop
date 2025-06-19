@@ -1,9 +1,7 @@
 <script setup>
-import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
+import Button from '@/Components/App/Button.vue';
+import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 
 defineProps({
     mustVerifyEmail: {
@@ -23,80 +21,118 @@ const form = useForm({
 </script>
 
 <template>
-    <section>
-        <header>
-            <h2 class="text-lg font-medium text-gray-900">Profile Information</h2>
-
-            <p class="mt-1 text-sm text-gray-600">
-                Update your account's profile information and email address.
+    <form @submit.prevent="form.patch(route('profile.update'))" class="space-y-6">
+        <!-- Name Field -->
+        <div class="space-y-2">
+            <label for="name" class="block text-sm font-medium text-white">
+                Full Name
+            </label>
+            <input
+                id="name"
+                v-model="form.name"
+                type="text"
+                required
+                autofocus
+                autocomplete="name"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300"
+                placeholder="Enter your full name"
+            />
+            <p v-if="form.errors.name" class="text-red-400 text-sm flex items-center gap-2">
+                <ExclamationTriangleIcon class="w-4 h-4" />
+                {{ form.errors.name }}
             </p>
-        </header>
+        </div>
 
-        <form @submit.prevent="form.patch(route('profile.update'))" class="mt-6 space-y-6">
-            <div>
-                <InputLabel for="name" value="Name" />
+        <!-- Email Field -->
+        <div class="space-y-2">
+            <label for="email" class="block text-sm font-medium text-white">
+                Email Address
+            </label>
+            <input
+                id="email"
+                v-model="form.email"
+                type="email"
+                required
+                autocomplete="username"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300"
+                placeholder="Enter your email address"
+            />
+            <p v-if="form.errors.email" class="text-red-400 text-sm flex items-center gap-2">
+                <ExclamationTriangleIcon class="w-4 h-4" />
+                {{ form.errors.email }}
+            </p>
+        </div>
 
-                <TextInput
-                    id="name"
-                    type="text"
-                    class="mt-1 block w-full"
-                    v-model="form.name"
-                    required
-                    autofocus
-                    autocomplete="name"
-                />
-
-                <InputError class="mt-2" :message="form.errors.name" />
-            </div>
-
-            <div>
-                <InputLabel for="email" value="Email" />
-
-                <TextInput
-                    id="email"
-                    type="email"
-                    class="mt-1 block w-full"
-                    v-model="form.email"
-                    required
-                    autocomplete="username"
-                />
-
-                <InputError class="mt-2" :message="form.errors.email" />
-            </div>
-
-            <div v-if="mustVerifyEmail && user.email_verified_at === null">
-                <p class="text-sm mt-2 text-gray-800">
-                    Your email address is unverified.
+        <!-- Email Verification Notice -->
+        <div v-if="mustVerifyEmail && user.email_verified_at === null" class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <div class="flex items-start gap-3">
+                <ExclamationTriangleIcon class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div class="space-y-2">
+                    <p class="text-amber-200 text-sm">
+                        Your email address is not verified.
+                    </p>
                     <Link
                         :href="route('verification.send')"
                         method="post"
                         as="button"
-                        class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 text-sm font-medium transition-colors duration-200"
                     >
-                        Click here to re-send the verification email.
+                        Send Verification Email
                     </Link>
-                </p>
-
-                <div
-                    v-show="status === 'verification-link-sent'"
-                    class="mt-2 font-medium text-sm text-green-600"
-                >
-                    A new verification link has been sent to your email address.
                 </div>
             </div>
 
+            <Transition
+                enter-active-class="transition-all duration-300"
+                enter-from-class="opacity-0 scale-95"
+                enter-to-class="opacity-100 scale-100"
+                leave-active-class="transition-all duration-200"
+                leave-from-class="opacity-100 scale-100"
+                leave-to-class="opacity-0 scale-95"
+            >
+                <div
+                    v-if="status === 'verification-link-sent'"
+                    class="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
+                >
+                    <div class="flex items-center gap-2">
+                        <CheckCircleIcon class="w-4 h-4 text-emerald-400" />
+                        <p class="text-emerald-200 text-sm">
+                            A new verification link has been sent to your email address.
+                        </p>
+                    </div>
+                </div>
+            </Transition>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-between pt-4">
             <div class="flex items-center gap-4">
-                <PrimaryButton :disabled="form.processing">Save</PrimaryButton>
+                <Button 
+                    type="submit" 
+                    :disabled="form.processing"
+                    class="px-6 py-3"
+                >
+                    <span v-if="form.processing">Saving...</span>
+                    <span v-else>Save Changes</span>
+                </Button>
 
                 <Transition
-                    enter-active-class="transition ease-in-out"
-                    enter-from-class="opacity-0"
-                    leave-active-class="transition ease-in-out"
-                    leave-to-class="opacity-0"
+                    enter-active-class="transition-all duration-300"
+                    enter-from-class="opacity-0 translate-x-2"
+                    enter-to-class="opacity-100 translate-x-0"
+                    leave-active-class="transition-all duration-200"
+                    leave-from-class="opacity-100 translate-x-0"
+                    leave-to-class="opacity-0 translate-x-2"
                 >
-                    <p v-if="form.recentlySuccessful" class="text-sm text-gray-600">Saved.</p>
+                    <div 
+                        v-if="form.recentlySuccessful" 
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
+                    >
+                        <CheckCircleIcon class="w-4 h-4 text-emerald-400" />
+                        <span class="text-emerald-200 text-sm font-medium">Saved successfully!</span>
+                    </div>
                 </Transition>
             </div>
-        </form>
-    </section>
+        </div>
+    </form>
 </template>

@@ -174,8 +174,8 @@ const sortedFiles = computed(() => {
                             <span class="font-mono">{{ uploadRequest.reference_number }}</span>
                         </div>
                         <div v-if="uploadRequest.is_encrypted" class="flex items-center space-x-2">
-                            <Icon name="shield" :size="16" class="text-blue-400" />
-                            <span class="text-blue-400">Encrypted</span>
+                            <Icon name="shield" :size="16" class="text-primary" />
+                            <span class="text-primary">Encrypted</span>
                         </div>
                     </div>
                 </div>
@@ -192,7 +192,7 @@ const sortedFiles = computed(() => {
                     
                     <Card class="text-center">
                         <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-secondary flex items-center justify-center">
-                            <Icon name="harddrive" :size="24" class="text-white" />
+                            <Icon name="harddrive" :size="24" class="text-primary-end" />
                         </div>
                         <div class="text-2xl font-bold text-text-primary">{{ formatBytes(storageUsed) }}</div>
                         <div class="text-sm text-text-secondary">Total Size</div>
@@ -210,13 +210,13 @@ const sortedFiles = computed(() => {
                 </div>
 
                 <!-- Encryption Key Input -->
-                <Card v-if="uploadRequest.is_encrypted" class="border-amber-500/20 bg-amber-500/5">
+                <Card v-if="uploadRequest.is_encrypted" class="border-accent/20 bg-accent/5">
                     <div class="flex items-start space-x-4">
-                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                            <Icon name="key" :size="24" class="text-amber-400" />
+                        <div class="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center flex-shrink-0">
+                            <Icon name="key" :size="24" class="text-accent" />
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-lg font-semibold text-amber-400 mb-2">Encryption Key Required</h3>
+                            <h3 class="text-lg font-semibold text-accent mb-2">Encryption Key Required</h3>
                             <p class="text-sm text-text-secondary mb-4">
                                 This QuickDrop is encrypted. Enter the encryption key provided by the owner to upload or download files.
                             </p>
@@ -262,11 +262,11 @@ const sortedFiles = computed(() => {
                 </Card>
 
                 <!-- Upload Not Allowed -->
-                <Card v-else-if="!uploadRequest.can_upload" class="text-center border-red-500/20 bg-red-500/5">
-                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
-                        <Icon name="ban" :size="32" class="text-red-400" />
+                <Card v-else-if="!uploadRequest.can_upload" class="text-center border-accent/20 bg-accent/5">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
+                        <Icon name="ban" :size="32" class="text-accent" />
                     </div>
-                    <h3 class="text-lg font-semibold text-red-400 mb-2">Upload Not Available</h3>
+                    <h3 class="text-lg font-semibold text-accent mb-2">Upload Not Available</h3>
                     <p class="text-text-secondary">
                         File uploads are not allowed for this QuickDrop box.
                     </p>
