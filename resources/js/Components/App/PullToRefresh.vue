@@ -180,7 +180,6 @@ async function handleTouchEnd() {
     try {
       await props.onRefresh()
     } catch (error) {
-      console.error('Refresh error:', error)
     } finally {
       // Animate out
       setTimeout(() => {

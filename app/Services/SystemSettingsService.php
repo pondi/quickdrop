@@ -34,7 +34,19 @@ class SystemSettingsService
             $setting = SystemSetting::where('key', $key)->first();
             
             if (!$setting) {
-                continue;
+                // Create a basic setting if it doesn't exist
+                $setting = new SystemSetting();
+                $setting->key = $key;
+                $setting->type = is_numeric($value) ? 'integer' : 'string';
+                $setting->group = 'general';
+                $setting->label = ucfirst(str_replace(['_', '.'], ' ', $key));
+                $setting->is_public = false;
+                $setting->order = 999;
+                
+                // Add basic validation for known keys
+                if ($key === 'max_file_size' || $key === 'default_expiration_hours') {
+                    $setting->validation_rules = 'required|integer|min:1';
+                }
             }
 
             // Validate the value
@@ -57,7 +69,12 @@ class SystemSettingsService
         }
 
         if (!empty($errors)) {
-            throw ValidationException::withMessages($errors);
+            // Prefix errors with 'settings.' to match expected format
+            $prefixedErrors = [];
+            foreach ($errors as $key => $error) {
+                $prefixedErrors["settings.{$key}"] = $error;
+            }
+            throw ValidationException::withMessages($prefixedErrors);
         }
 
         // Clear all caches
@@ -275,5 +292,30 @@ class SystemSettingsService
         }
         
         return $result;
+    }
+
+    public function updateSetting($key, $value)
+    {
+        $setting = SystemSetting::where('key', $key)->first();
+        
+        if (!$setting) {
+            // Create new setting if it doesn't exist
+            $setting = new SystemSetting();
+            $setting->key = $key;
+            $setting->type = 'string';
+            $setting->group = 'general';
+            $setting->label = ucfirst(str_replace(['.', '_'], ' ', $key));
+            $setting->is_public = false;
+            $setting->order = 999;
+        }
+
+        $setting->value = $value;
+        $setting->save();
+
+        // Clear caches
+        Cache::forget('system_settings');
+        Cache::forget("system_setting_{$key}");
+
+        return $setting;
     }
 }

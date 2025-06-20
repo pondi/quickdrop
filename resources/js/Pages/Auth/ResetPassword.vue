@@ -151,7 +151,7 @@ const toggleConfirmPassword = () => {
             <div class="mt-6 text-center">
                 <p class="text-sm text-text-secondary">
                     Remember your password?
-                    <a :href="route('login')" class="text-primary hover:text-primary-end transition-colors font-medium">
+                    <a :href="route('backstage.login')" class="text-primary hover:text-primary-end transition-colors font-medium">
                         Sign in
                     </a>
                 </p>

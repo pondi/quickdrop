@@ -83,7 +83,6 @@ const copyToClipboard = async (text) => {
         copySuccess.value = true;
         setTimeout(() => copySuccess.value = false, 2000);
     } catch (err) {
-        console.error('Failed to copy to clipboard');
     }
 };
 
@@ -97,7 +96,6 @@ const shareBox = async (box) => {
         shareData.value = response.data;
         showShareModal.value = true;
     } catch (error) {
-        console.error('Failed to generate share link:', error);
         // Fallback to using the existing upload_url
         shareUrl.value = box.upload_url;
         shareData.value = {
@@ -112,8 +110,8 @@ const shareBox = async (box) => {
 };
 
 const deleteBox = (box) => {
-    // TODO: Implement delete functionality when backend route is added
-    console.log('Delete functionality not yet implemented for:', box.title);
+    // Delete functionality not yet implemented
+    // Delete functionality not yet implemented
 };
 
 const handleRefresh = async () => {

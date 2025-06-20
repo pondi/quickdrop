@@ -28,21 +28,29 @@ class MagicLinkService
             }
         }
 
-        MagicLink::where('email', $email)
-            ->where('purpose', $purpose)
-            ->valid()
-            ->update(['used_at' => now()]);
-
-        $magicLink = MagicLink::createForEmail($email, $purpose);
-
-        $url = URL::temporarySignedRoute(
-            'quickdrop.auth.verify',
-            $magicLink->expires_at,
-            ['token' => $magicLink->token]
-        );
-
         if ($user) {
+            MagicLink::where('quickdrop_user_id', $user->id)
+                ->where('purpose', $purpose)
+                ->valid()
+                ->update(['used_at' => now()]);
+
+            $magicLink = MagicLink::create([
+                'email' => $email,
+                'quickdrop_user_id' => $user->id,
+                'token' => MagicLink::generateToken(),
+                'expires_at' => now()->addMinutes(15),
+                'purpose' => $purpose,
+            ]);
+
+            $url = URL::temporarySignedRoute(
+                'quickdrop.auth.verify',
+                $magicLink->expires_at,
+                ['token' => $magicLink->token]
+            );
+
             $user->notify(new MagicLinkNotification($url, $purpose));
+        } else {
+            throw new \Exception('User not found.');
         }
 
         return $magicLink;
@@ -66,7 +74,7 @@ class MagicLinkService
             throw new \Exception('This magic link is no longer valid.');
         }
 
-        $user = QuickDropUser::where('email', $magicLink->email)->first();
+        $user = $magicLink->quickDropUser;
 
         if (!$user) {
             throw new \Exception('No account found for this magic link.');

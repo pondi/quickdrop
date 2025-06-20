@@ -89,10 +89,10 @@ class QuickDropService
         }
 
         $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
-        $path = $request->requesting_user_id.'/'.$request->unique_request_id.'/'.$filename;
+        $path = $request->quickdrop_user_id.'/'.$request->unique_request_id.'/'.$filename;
 
         $uploadObject = new UploadObject();
-        $uploadObject->owner_id = $ownerId;
+        $uploadObject->quickdrop_owner_id = $ownerId;
         $uploadObject->original_name = $file->getClientOriginalName();
         $uploadObject->stored_name = $filename;
         $uploadObject->storage_path = $path;
@@ -138,7 +138,7 @@ class QuickDropService
         bool $allowPublicUpload = true
     ): UploadRequest {
         $uploadRequest = new UploadRequest();
-        $uploadRequest->requesting_user_id = $userId;
+        $uploadRequest->quickdrop_user_id = $userId;
         $uploadRequest->title = $title;
         $uploadRequest->comment = $comment;
         $uploadRequest->reference_number = $referenceNumber;

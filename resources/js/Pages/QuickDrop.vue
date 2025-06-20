@@ -130,7 +130,6 @@ const downloadFile = async (file) => {
             window.open(downloadUrl, '_blank');
         }
     } catch (error) {
-        console.error('Download error:', error);
         alert(error.message || 'Download failed. Please try again.');
     }
 };
@@ -141,7 +140,6 @@ const copyToClipboard = async (text) => {
         copySuccess.value = true;
         setTimeout(() => copySuccess.value = false, 2000);
     } catch (err) {
-        console.error('Failed to copy to clipboard');
     }
 };
 
@@ -166,7 +164,6 @@ const downloadAllFiles = async () => {
             window.location.href = downloadUrl;
         }
     } catch (error) {
-        console.error('Bulk download error:', error);
         alert(error.message || 'Bulk download failed. Please try again.');
     }
 };
@@ -180,7 +177,6 @@ const openShareModal = async () => {
         shareData.value = response.data;
         showShareModal.value = true;
     } catch (error) {
-        console.error('Failed to generate share link:', error);
         // Fallback to using the current URL
         shareUrl.value = currentUrl.value;
         shareData.value = {

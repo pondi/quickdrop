@@ -22,6 +22,12 @@ class BackstageDashboardController extends Controller
 
     public function index(Request $request): Response
     {
+        \Log::info('BackstageDashboard accessed', [
+            'user' => auth()->guard('web')->user()?->email,
+            'guard_check' => auth()->guard('web')->check(),
+            'path' => $request->path(),
+        ]);
+        
         $statistics = $this->getStatistics();
 
         return Inertia::render('Backstage/Dashboard', [

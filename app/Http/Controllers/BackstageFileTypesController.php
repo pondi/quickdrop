@@ -136,6 +136,21 @@ class BackstageFileTypesController extends Controller
             ->with('success', 'File type deleted successfully.');
     }
 
+    public function bulkUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'category' => 'required|string|in:' . implode(',', array_keys(FileTypeSetting::CATEGORIES)),
+            'updates' => 'required|array',
+            'updates.is_allowed' => 'sometimes|boolean',
+            'updates.max_size' => 'sometimes|nullable|integer|min:0',
+        ]);
+        
+        $count = FileTypeSetting::where('category', $validated['category'])
+            ->update($validated['updates']);
+        
+        return back()->with('success', "{$count} file types updated.");
+    }
+
     public function config()
     {
         return response()->json($this->fileTypeService->getConfigForFrontend());

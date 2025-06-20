@@ -192,7 +192,6 @@ function checkConnection() {
 async function syncPendingActions() {
   if (pendingSync.value.length === 0) return
   
-  console.log('Syncing pending actions...', pendingSync.value)
   
   // Simulate sync
   for (const action of pendingSync.value) {
@@ -200,7 +199,6 @@ async function syncPendingActions() {
       // Perform sync action
       await performSync(action)
     } catch (error) {
-      console.error('Sync failed for action:', action, error)
     }
   }
   

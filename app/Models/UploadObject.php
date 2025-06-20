@@ -30,6 +30,14 @@ class UploadObject extends Model
         'metadata',
         'version',
         'original_file_id',
+        'upload_request_id',
+        'filename',
+        'original_filename',
+        'path',
+        'checksum',
+        'uploaded_at',
+        'download_count',
+        'last_downloaded_at',
     ];
 
     protected $casts = [
@@ -37,6 +45,9 @@ class UploadObject extends Model
         'is_encrypted' => 'boolean',
         'metadata'     => 'array',
         'version'      => 'integer',
+        'download_count' => 'integer',
+        'uploaded_at'  => 'datetime',
+        'last_downloaded_at' => 'datetime',
     ];
 
     public function owner(): BelongsTo

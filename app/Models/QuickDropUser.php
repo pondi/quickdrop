@@ -28,6 +28,9 @@ class QuickDropUser extends Authenticatable
         'notify_on_download',
         'notify_on_expiration_warning',
         'notify_marketing',
+        'notify_on_all_uploads_complete',
+        'notify_on_expiration',
+        'notify_on_share',
     ];
 
     protected $hidden = [
@@ -45,6 +48,9 @@ class QuickDropUser extends Authenticatable
         'notify_on_download' => 'boolean',
         'notify_on_expiration_warning' => 'boolean',
         'notify_marketing' => 'boolean',
+        'notify_on_all_uploads_complete' => 'boolean',
+        'notify_on_expiration' => 'boolean',
+        'notify_on_share' => 'boolean',
     ];
 
     public function uploadRequests()
@@ -64,7 +70,7 @@ class QuickDropUser extends Authenticatable
 
     public function getStorageUsedPercentageAttribute()
     {
-        if ($this->storage_limit === 0) {
+        if (!$this->storage_limit || $this->storage_limit == 0) {
             return 0;
         }
         return round(($this->storage_used / $this->storage_limit) * 100, 2);

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\QuickDropUser;
+use App\Models\UploadRequest;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Validation\Rule;
 
 class BackstageQuickDropUsersController extends Controller
 {
@@ -122,7 +124,9 @@ class BackstageQuickDropUsersController extends Controller
     public function edit(QuickDropUser $quickDropUser)
     {
         return Inertia::render('Backstage/QuickDropUsers/Edit', [
-            'user' => $quickDropUser->only('id', 'name', 'email', 'is_active', 'storage_limit', 'email_verified_at'),
+            'user' => $quickDropUser->only('id', 'name', 'email', 'is_active', 'storage_limit', 'email_verified_at', 
+                'notify_on_upload_complete', 'notify_on_all_uploads_complete', 'notify_on_download', 
+                'notify_on_expiration', 'notify_on_share'),
         ]);
     }
 
@@ -133,10 +137,15 @@ class BackstageQuickDropUsersController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:quickdrop_users,email,' . $quickDropUser->id],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('quickdrop_users')->ignore($quickDropUser->id)],
             'storage_limit' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
             'email_verified' => ['boolean'],
+            'notify_on_upload_complete' => ['boolean'],
+            'notify_on_all_uploads_complete' => ['boolean'],
+            'notify_on_download' => ['boolean'],
+            'notify_on_expiration' => ['boolean'],
+            'notify_on_share' => ['boolean'],
         ]);
 
         $quickDropUser->update([
@@ -144,6 +153,11 @@ class BackstageQuickDropUsersController extends Controller
             'email' => $validated['email'],
             'storage_limit' => $validated['storage_limit'] ?? $quickDropUser->storage_limit,
             'is_active' => $validated['is_active'] ?? $quickDropUser->is_active,
+            'notify_on_upload_complete' => $validated['notify_on_upload_complete'] ?? $quickDropUser->notify_on_upload_complete,
+            'notify_on_all_uploads_complete' => $validated['notify_on_all_uploads_complete'] ?? $quickDropUser->notify_on_all_uploads_complete,
+            'notify_on_download' => $validated['notify_on_download'] ?? $quickDropUser->notify_on_download,
+            'notify_on_expiration' => $validated['notify_on_expiration'] ?? $quickDropUser->notify_on_expiration,
+            'notify_on_share' => $validated['notify_on_share'] ?? $quickDropUser->notify_on_share,
         ]);
 
         if ($validated['email_verified'] && !$quickDropUser->isVerified()) {
@@ -220,5 +234,46 @@ class BackstageQuickDropUsersController extends Controller
         return response($csv)
             ->header('Content-Type', 'text/csv')
             ->header('Content-Disposition', 'attachment; filename="quickdrop-users-' . now()->format('Y-m-d') . '.csv"');
+    }
+    
+    public function suspend(QuickDropUser $quickDropUser)
+    {
+        // Deactivate user
+        $quickDropUser->update(['is_active' => false]);
+        
+        // Deactivate all user's active uploads
+        UploadRequest::where('quickdrop_user_id', $quickDropUser->id)
+            ->where('is_active', true)
+            ->update([
+                'is_active' => false,
+                'deactivated_at' => now(),
+            ]);
+            
+        return redirect()->back()->with('success', 'User suspended successfully.');
+    }
+    
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'inactive_months' => 'required|integer|min:1',
+        ]);
+        
+        $cutoffDate = now()->subMonths($request->inactive_months);
+        
+        // Find inactive users
+        $inactiveUsers = QuickDropUser::where('created_at', '<', $cutoffDate)
+            ->whereDoesntHave('uploadRequests', function ($query) use ($cutoffDate) {
+                $query->where('created_at', '>=', $cutoffDate);
+            })
+            ->get();
+            
+        $count = $inactiveUsers->count();
+        
+        // Delete the inactive users
+        foreach ($inactiveUsers as $user) {
+            $user->delete();
+        }
+        
+        return redirect()->back()->with('success', "Deleted {$count} inactive users.");
     }
 }

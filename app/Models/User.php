@@ -49,8 +49,4 @@ class User extends Authenticatable
         ];
     }
 
-    public function uploadRequests(): HasMany
-    {
-        return $this->hasMany(UploadRequest::class);
-    }
 }

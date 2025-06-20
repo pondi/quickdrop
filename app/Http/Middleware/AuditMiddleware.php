@@ -29,6 +29,9 @@ class AuditMiddleware
         'download.file' => ['GET', AuditLog::EVENT_DOWNLOAD, 'Downloaded file'],
         
         // Backstage operations
+        'backstage.users.store' => ['POST', AuditLog::EVENT_CREATE, 'Created admin user'],
+        'backstage.users.update' => ['PUT', AuditLog::EVENT_UPDATE, 'Updated admin user'],
+        'backstage.users.destroy' => ['DELETE', AuditLog::EVENT_DELETE, 'Deleted admin user'],
         'backstage.quickdrop-users.store' => ['POST', AuditLog::EVENT_CREATE, 'Created QuickDrop user'],
         'backstage.quickdrop-users.update' => ['PUT', AuditLog::EVENT_UPDATE, 'Updated QuickDrop user'],
         'backstage.quickdrop-users.destroy' => ['DELETE', AuditLog::EVENT_DELETE, 'Deleted QuickDrop user'],
@@ -49,8 +52,8 @@ class AuditMiddleware
         if ($routeName && isset($this->auditableRoutes[$routeName])) {
             [$method, $eventType, $description] = $this->auditableRoutes[$routeName];
             
-            // Only audit if the method matches and response is successful
-            if ($request->method() === $method && $response->isSuccessful()) {
+            // Only audit if the method matches and response is successful or redirect
+            if ($request->method() === $method && ($response->isSuccessful() || $response->isRedirection())) {
                 $this->logRequest($request, $eventType, $description);
             }
         }

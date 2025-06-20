@@ -140,6 +140,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Link } from '@inertiajs/vue3'
+import SidebarItem from '@/Components/Backstage/SidebarItem.vue'
 
 const isDark = ref(false)
 
@@ -156,16 +157,4 @@ onMounted(() => {
         document.documentElement.setAttribute('data-theme', savedTheme)
     }
 })
-
-const SidebarItem = {
-    props: ['href', 'active'],
-    template: `
-        <Link :href="href" 
-              class="admin-sidebar-item flex items-center space-x-3"
-              :class="{ 'active': active }">
-            <slot name="icon" />
-            <span class="text-sm font-medium"><slot /></span>
-        </Link>
-    `
-}
 </script>

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('quickdrop_users', function (Blueprint $table) {
-            $table->boolean('notify_on_upload_complete')->default(true)->after('status');
+            $table->boolean('notify_on_upload_complete')->default(true)->after('storage_limit');
             $table->boolean('notify_on_download')->default(true)->after('notify_on_upload_complete');
             $table->boolean('notify_on_expiration_warning')->default(true)->after('notify_on_download');
             $table->boolean('notify_marketing')->default(false)->after('notify_on_expiration_warning');

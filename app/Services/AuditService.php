@@ -167,7 +167,7 @@ class AuditService
         ?string $userType = null,
         int $perPage = 50
     ) {
-        $query = AuditLog::query()->with(['user']);
+        $query = AuditLog::query();
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -191,6 +191,8 @@ class AuditService
 
         if ($userId && $userType) {
             $query->byUser($userId, $userType);
+        } elseif ($userType) {
+            $query->where('user_type', $userType);
         }
 
         return $query->latest()->paginate($perPage);

@@ -378,7 +378,6 @@ const fetchHistoricalData = async () => {
         await nextTick();
         createStorageTrendChart();
     } catch (error) {
-        console.error('Failed to fetch historical data:', error);
     }
 };
 

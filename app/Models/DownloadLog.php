@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DownloadLog extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'upload_request_id',
         'upload_object_id',

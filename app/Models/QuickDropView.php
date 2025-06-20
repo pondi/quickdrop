@@ -10,6 +10,8 @@ class QuickDropView extends Model
 {
     use HasFactory;
 
+    protected $table = 'quickdrop_views';
+
     protected $fillable = [
         'upload_request_id',
         'ip_address',

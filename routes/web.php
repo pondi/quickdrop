@@ -16,8 +16,6 @@ use App\Http\Controllers\BackstageFileTypesController;
 use App\Http\Controllers\BackstageSettingsController;
 use Illuminate\Support\Facades\Route;
 
-// All routes are automatically in the 'web' middleware group from RouteServiceProvider
-
 // Redirect root to QuickDrop index
 Route::get('/', function () {
     if (auth()->guard('quickdrop')->check()) {
@@ -26,7 +24,10 @@ Route::get('/', function () {
     return redirect()->route('quickdrop.login');
 })->name('home');
 
-// QuickDrop User Authentication Routes (Magic Links)
+Route::get('/login', function () {
+    return redirect()->route('quickdrop.login');
+});
+
 Route::prefix('auth')->name('quickdrop.')->group(function () {
     Route::get('/login', [QuickDropAuthController::class, 'showLogin'])->name('login');
     Route::get('/register', [QuickDropAuthController::class, 'showRegister'])->name('register');
@@ -38,15 +39,10 @@ Route::prefix('auth')->name('quickdrop.')->group(function () {
         ->name('resend-verification');
 });
 
-// FEAT-009: User Authentication - Protected routes
-// QuickDrop User Authenticated routes
+// Protected routes
 Route::middleware(['quickdrop.auth'])->group(function () {
-    // FEAT-010: User Dashboard
-    // Dashboard routes
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // FEAT-011: Profile Management
-    // Profile routes
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('edit');
         Route::patch('/', [ProfileController::class, 'update'])->name('update');
@@ -54,11 +50,6 @@ Route::middleware(['quickdrop.auth'])->group(function () {
         Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
     });
 
-    // FEAT-001: QuickDrop Creation
-    // FEAT-012: QuickDrop List View
-    // FEAT-032: Quick Share Link Generation
-    // FEAT-026: Share Analytics
-    // QuickDrop authenticated routes
     Route::prefix('quickdrop')->name('quickdrop.')->group(function () {
         Route::get('/', [QuickDropController::class, 'index'])->name('index');
         Route::get('/create', [QuickDropController::class, 'create'])->name('create');
@@ -74,37 +65,40 @@ Route::middleware(['quickdrop.auth'])->group(function () {
             ->name('api.analytics');
     });
     
-    // FEAT-027: Storage Analytics
     Route::prefix('storage-analytics')->name('storage-analytics.')->group(function () {
         Route::get('/', [StorageAnalyticsController::class, 'index'])->name('index');
     });
 });
 
-// FEAT-013: Public Upload Interface
-// FEAT-002: File Upload System
 // Public QuickDrop routes
 Route::prefix('quickdrop')->name('quickdrop.')->middleware(['web'])->group(function () {
     Route::get('/{unique_request_id}', [QuickDropController::class, 'showQuickDrop'])
         ->where('unique_request_id', '[A-Za-z0-9\-_]+')
         ->name('show');
+    
+    Route::post('/{unique_request_id}/verify', [QuickDropController::class, 'verifyReferenceNumber'])
+        ->where('unique_request_id', '[A-Za-z0-9\-_]+')
+        ->name('verify');
 
     Route::post('/{unique_request_id}/upload', [QuickDropController::class, 'upload'])
         ->where('unique_request_id', '[A-Za-z0-9\-_]+')
         ->name('upload');
 });
 
-// FEAT-003: File Download
-// FEAT-004: Bulk Download (ZIP)
-// Download routes (public but secured by request ID and file UUID)
+
+// Download routes
 Route::prefix('download')->name('download.')->middleware(['web'])->group(function () {
-    Route::get('/{requestId}/{fileUuid?}', [DownloadController::class, 'download'])
-        ->where('requestId', '[A-Za-z0-9\-_]+')
-        ->where('fileUuid', '[A-Za-z0-9\-_]+|')  // Allow empty for bulk downloads
+    Route::get('/{request}/{file}', [DownloadController::class, 'downloadFile'])
+        ->where('request', '[A-Za-z0-9\-_]+')
+        ->where('file', '[0-9]+')
         ->name('file');
+    
+    Route::get('/{request}/all', [DownloadController::class, 'downloadAll'])
+        ->where('request', '[A-Za-z0-9\-_]+')
+        ->name('all');
 });
 
-// FEAT-033: File Preview
-// Preview routes (public but secured by request ID and file UUID)
+// Preview routes
 Route::prefix('preview')->name('preview.')->middleware(['web'])->group(function () {
     Route::get('/{requestId}/{fileUuid}', [FilePreviewController::class, 'preview'])
         ->where('requestId', '[A-Za-z0-9\-_]+')
@@ -117,6 +111,11 @@ Route::prefix('preview')->name('preview.')->middleware(['web'])->group(function 
         ->name('thumbnail');
 });
 
+Route::get('/preview/{request}/{file}', [FilePreviewController::class, 'previewById'])
+    ->where('request', '[A-Za-z0-9\-_]+')
+    ->where('file', '[0-9]+')
+    ->name('file.preview');
+
 // API routes for storage analytics
 Route::middleware(['quickdrop.auth'])->prefix('api/storage-analytics')->name('api.storage-analytics.')->group(function () {
     Route::get('/overview', [StorageAnalyticsController::class, 'overview'])->name('overview');
@@ -128,57 +127,79 @@ Route::middleware(['quickdrop.auth'])->prefix('api/storage-analytics')->name('ap
 Route::get('/api/file-types/config', [BackstageFileTypesController::class, 'config'])->name('api.file-types.config');
 Route::get('/api/settings/public', [BackstageSettingsController::class, 'publicSettings'])->name('api.settings.public');
 
-// Backstage/Admin routes
-Route::middleware(['auth', 'backstage.auth'])->prefix('backstage')->name('backstage.')->group(function () {
+// Admin routes
+Route::middleware(['auth:web', 'backstage.auth', 'audit'])->prefix('backstage')->name('backstage.')->group(function () {
     Route::get('/', function () {
         return redirect()->route('backstage.dashboard');
     });
     
-    // FEAT-021: Admin Dashboard
     Route::get('/dashboard', [BackstageDashboardController::class, 'index'])->name('dashboard');
     Route::get('/api/stats', [BackstageDashboardController::class, 'stats'])->name('api.stats');
     
-    // FEAT-022: User Management
-    // Backstage Users (Administrators) Management
     Route::resource('users', BackstageUsersController::class);
     
     // QuickDrop Users Management
-    Route::resource('quickdrop-users', BackstageQuickDropUsersController::class);
+    Route::resource('quickdrop-users', BackstageQuickDropUsersController::class)->parameter('quickdrop-users', 'quickDropUser');
     Route::post('/quickdrop-users/{quickDropUser}/toggle-status', [BackstageQuickDropUsersController::class, 'toggleStatus'])
         ->name('quickdrop-users.toggle-status');
     Route::post('/quickdrop-users/{quickDropUser}/reset-storage', [BackstageQuickDropUsersController::class, 'resetStorage'])
         ->name('quickdrop-users.reset-storage');
+    Route::post('/quickdrop-users/{quickDropUser}/suspend', [BackstageQuickDropUsersController::class, 'suspend'])
+        ->name('quickdrop-users.suspend');
     Route::get('/quickdrop-users/export/csv', [BackstageQuickDropUsersController::class, 'export'])
         ->name('quickdrop-users.export');
+    Route::post('/quickdrop-users/bulk-delete', [BackstageQuickDropUsersController::class, 'bulkDelete'])
+        ->name('quickdrop-users.bulk-delete');
     
-    // FEAT-023: QuickDrop Management
-    // QuickDrops Management
+    // Put specific routes before resource route to avoid conflicts
+    Route::get('/quickdrops/export', [BackstageQuickDropsController::class, 'export'])
+        ->name('quickdrops.export');
+    Route::get('/quickdrops/storage-by-user', [BackstageQuickDropsController::class, 'storageByUser'])
+        ->name('quickdrops.storage-by-user');
+    Route::post('/quickdrops/bulk-delete-expired', [BackstageQuickDropsController::class, 'bulkDeleteExpired'])
+        ->name('quickdrops.bulk-delete-expired');
+    
     Route::resource('quickdrops', BackstageQuickDropsController::class)->only(['index', 'show', 'destroy']);
-    Route::post('/quickdrops/{uploadRequest}/extend', [BackstageQuickDropsController::class, 'extend'])
+    Route::post('/quickdrops/{quickdrop}/extend', [BackstageQuickDropsController::class, 'extend'])
         ->name('quickdrops.extend');
+    Route::post('/quickdrops/{quickdrop}/deactivate', [BackstageQuickDropsController::class, 'deactivate'])
+        ->name('quickdrops.deactivate');
+    Route::post('/quickdrops/{quickdrop}/activate', [BackstageQuickDropsController::class, 'activate'])
+        ->name('quickdrops.activate');
+    Route::get('/quickdrops/{quickdrop}/analytics', [BackstageQuickDropsController::class, 'analytics'])
+        ->name('quickdrops.analytics');
+    Route::post('/quickdrops/{quickdrop}/regenerate-link', [BackstageQuickDropsController::class, 'regenerateLink'])
+        ->name('quickdrops.regenerate-link');
     
-    // FEAT-025: Audit Log
     Route::get('/audit-log', [BackstageAuditLogController::class, 'index'])->name('audit-log.index');
     Route::get('/audit-log/export', [BackstageAuditLogController::class, 'export'])->name('audit-log.export');
     Route::get('/api/audit-log/stats', [BackstageAuditLogController::class, 'stats'])->name('api.audit-log.stats');
     
-    // FEAT-024: System Settings
     Route::get('/settings', [BackstageSettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [BackstageSettingsController::class, 'update'])->name('settings.update');
+    Route::put('/settings/email', [BackstageSettingsController::class, 'updateEmail'])->name('settings.email');
+    Route::put('/settings/storage', [BackstageSettingsController::class, 'updateStorage'])->name('settings.storage');
+    Route::put('/settings/security', [BackstageSettingsController::class, 'updateSecurity'])->name('settings.security');
+    Route::get('/settings/export', [BackstageSettingsController::class, 'export'])->name('settings.export');
+    Route::post('/settings/import', [BackstageSettingsController::class, 'import'])->name('settings.import');
     Route::post('/settings/reset', [BackstageSettingsController::class, 'reset'])->name('settings.reset');
     
-    // FEAT-036: Dynamic File Type Management
     Route::resource('file-types', BackstageFileTypesController::class);
     Route::post('/file-types/{fileType}/toggle', [BackstageFileTypesController::class, 'toggle'])
         ->name('file-types.toggle');
     Route::post('/file-types/bulk-toggle', [BackstageFileTypesController::class, 'bulkToggle'])
         ->name('file-types.bulk-toggle');
+    Route::post('/file-types/bulk-update', [BackstageFileTypesController::class, 'bulkUpdate'])
+        ->name('file-types.bulk-update');
 });
 
-// Backstage login route
-Route::get('/backstage/login', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])
-    ->middleware('guest')
-    ->name('backstage.login');
+// Admin login routes
+Route::middleware('guest')->group(function () {
+    Route::get('/backstage/login', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])
+        ->name('backstage.login');
+    Route::post('/backstage/login', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store'])
+        ->name('backstage.login.store');
+});
 
 // Authentication routes (for backstage administrators)
 require __DIR__.'/auth.php';

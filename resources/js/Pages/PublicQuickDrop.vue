@@ -107,7 +107,6 @@ const downloadFile = async (file) => {
             window.open(downloadUrl, '_blank');
         }
     } catch (error) {
-        console.error('Download error:', error);
         alert(error.message || 'Download failed. Please try again.');
     }
 };
@@ -128,7 +127,6 @@ const downloadAllFiles = async () => {
             window.location.href = downloadUrl;
         }
     } catch (error) {
-        console.error('Bulk download error:', error);
         alert(error.message || 'Bulk download failed. Please try again.');
     }
 };

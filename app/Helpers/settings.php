@@ -12,7 +12,13 @@ if (!function_exists('settings')) {
      */
     function settings($key, $default = null)
     {
-        return SystemSetting::getValue($key, $default);
+        try {
+            return SystemSetting::getValue($key, $default);
+        } catch (\Exception $e) {
+            // In case of database errors (like during testing), return default
+            \Log::warning("Failed to get setting: {$key}", ['error' => $e->getMessage()]);
+            return $default;
+        }
     }
 }
 

@@ -19,9 +19,27 @@ class DownloadController extends Controller
         private readonly DownloadTrackingService $downloadTrackingService
     ) {
     }
+    
+    // Wrapper method for test compatibility
+    public function downloadFile(Request $request, string $requestId, int $fileId)
+    {
+        // Get the upload request
+        $uploadRequest = UploadRequest::where('unique_request_id', $requestId)->firstOrFail();
+        
+        // Get the file by ID
+        $file = $uploadRequest->uploadObjects()->findOrFail($fileId);
+        
+        // Call the existing download method with the file's unique_id
+        return $this->download($request, $requestId, $file->unique_id);
+    }
+    
+    // Wrapper method for downloading all files
+    public function downloadAll(Request $request, string $requestId)
+    {
+        // Call the existing download method without fileUuid for bulk download
+        return $this->download($request, $requestId, null);
+    }
 
-    // FEAT-003: File Download - Handle single file and bulk downloads
-    // FEAT-004: Bulk Download (ZIP) - When fileUuid is null
     public function download(Request $request, string $requestId, ?string $fileUuid = null)
     {
         try {
@@ -30,15 +48,41 @@ class DownloadController extends Controller
                 return response()->json(['message' => 'Direct file downloads not supported via Inertia. Please use a direct download link.'], 400);
             }
 
-            $uploadRequest = UploadRequest::where('unique_request_id', $requestId)
-                ->where(function ($query) {
-                    $query->where('status', 'active')
-                        ->where(function ($q) {
-                            $q->whereNull('expires_at')
-                                ->orWhere('expires_at', '>', now());
-                        });
-                })
-                ->firstOrFail();
+            $uploadRequest = UploadRequest::where('unique_request_id', $requestId)->first();
+            
+            if (!$uploadRequest) {
+                return response()->json(['message' => 'QuickDrop not found'], 404);
+            }
+            
+            // Check if expired
+            if ($uploadRequest->expires_at && $uploadRequest->expires_at->isPast()) {
+                return response()->json(['message' => 'This QuickDrop has expired'], 404);
+            }
+            
+            // Check if inactive
+            if ($uploadRequest->status !== 'active') {
+                return response()->json(['message' => 'This QuickDrop is no longer available'], 404);
+            }
+
+            // Check session-based access control
+            $sessionKey = 'quickdrop_access.' . $uploadRequest->unique_request_id;
+            if (!session()->has($sessionKey)) {
+                // Allow access if user is authenticated and owns the upload request
+                if (auth()->guard('quickdrop')->check()) {
+                    $user = auth()->guard('quickdrop')->user();
+                    if ($uploadRequest->quickdrop_user_id !== $user->id) {
+                        return response()->json(['message' => 'Access denied'], 403);
+                    }
+                } else {
+                    // For public users, require session access
+                    return response()->json(['message' => 'Access denied'], 403);
+                }
+            }
+
+            // Check max downloads limit
+            if ($uploadRequest->max_downloads > 0 && $uploadRequest->downloads_count >= $uploadRequest->max_downloads) {
+                return response()->json(['message' => 'Maximum download limit reached'], 403);
+            }
 
             // Prevent timeout for large files
             set_time_limit(0);

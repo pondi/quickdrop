@@ -12,6 +12,7 @@ class MagicLink extends Model
 
     protected $fillable = [
         'email',
+        'quickdrop_user_id',
         'token',
         'expires_at',
         'used_at',
@@ -45,7 +46,7 @@ class MagicLink extends Model
 
     public function quickDropUser()
     {
-        return $this->belongsTo(QuickDropUser::class, 'email', 'email');
+        return $this->belongsTo(QuickDropUser::class, 'quickdrop_user_id');
     }
 
     public function isValid()

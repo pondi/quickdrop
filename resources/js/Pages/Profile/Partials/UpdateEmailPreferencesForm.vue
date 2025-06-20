@@ -5,7 +5,7 @@ import Button from '@/Components/App/Button.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import { ref } from 'vue';
-import { MailIcon, BellIcon, BellSlashIcon } from '@heroicons/vue/24/outline';
+import { EnvelopeIcon, BellIcon, BellSlashIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     preferences: {
@@ -53,7 +53,7 @@ const preferences = [
         key: 'notify_marketing',
         title: 'Product Updates',
         description: 'Receive updates about new features and improvements',
-        icon: MailIcon,
+        icon: EnvelopeIcon,
     },
 ];
 </script>

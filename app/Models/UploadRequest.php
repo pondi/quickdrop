@@ -16,7 +16,6 @@ class UploadRequest extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'requesting_user_id',
         'quickdrop_user_id',
         'unique_request_id',
         'verification_token',
@@ -27,6 +26,18 @@ class UploadRequest extends Model
         'max_files',
         'is_encrypted',
         'key_verification_hash',
+        'title',
+        'comment',
+        'reference_number',
+        'is_active',
+        'deactivated_at',
+        'max_downloads',
+        'downloads_count',
+        'last_downloaded_at',
+        'metadata',
+        'allow_public_download',
+        'allow_public_delete',
+        'allow_public_upload',
     ];
 
     protected $casts = [
@@ -34,12 +45,18 @@ class UploadRequest extends Model
         'allowed_mime_types' => 'array',
         'max_file_size'      => 'integer',
         'max_files'          => 'integer',
+        'is_active'          => 'boolean',
+        'deactivated_at'     => 'datetime',
+        'last_downloaded_at' => 'datetime',
+        'metadata'           => 'array',
+        'allow_public_download' => 'boolean',
+        'allow_public_delete'   => 'boolean',
+        'allow_public_upload'   => 'boolean',
+        'is_encrypted'       => 'boolean',
+        'max_downloads'      => 'integer',
+        'downloads_count'    => 'integer',
     ];
 
-    public function requestingUser(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'requesting_user_id');
-    }
 
     public function quickDropUser(): BelongsTo
     {
@@ -108,12 +125,19 @@ class UploadRequest extends Model
     // Get allowed mime types from dynamic file type settings
     public function getAllowedMimeTypesAttribute(): array
     {
-        // Check if FileTypeSetting table exists
-        if (!\Schema::hasTable('file_type_settings')) {
-            // Fall back to config if table doesn't exist yet
-            return config('quickdrop.allowed_mime_types', []);
+        try {
+            return FileTypeSetting::getAllowedMimeTypes();
+        } catch (\Exception $e) {
+            // Fall back to config if table doesn't exist or there's a database error
+            return config('quickdrop.allowed_mime_types', [
+                'application/pdf',
+                'image/jpeg',
+                'image/png',
+                'image/gif',
+                'text/plain',
+                'application/zip',
+                'application/x-zip-compressed',
+            ]);
         }
-        
-        return FileTypeSetting::getAllowedMimeTypes();
     }
 }

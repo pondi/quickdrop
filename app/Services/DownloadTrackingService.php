@@ -35,6 +35,15 @@ class DownloadTrackingService
             ],
         ]);
         
+        // Increment download count and update last downloaded timestamp
+        if ($uploadObject) {
+            $uploadObject->increment('download_count');
+            $uploadObject->update(['last_downloaded_at' => now()]);
+        }
+        
+        // Increment overall download count for the request
+        $uploadRequest->increment('downloads_count');
+        
         return $downloadLog;
     }
     

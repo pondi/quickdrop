@@ -20,14 +20,8 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('login'), {
+    form.post(route('backstage.login.store'), {
         onFinish: () => form.reset('password'),
-        onSuccess: () => {
-            console.log('Login successful');
-        },
-        onError: (errors) => {
-            console.log('Login errors:', errors);
-        }
     });
 };
 </script>
@@ -37,9 +31,9 @@ const submit = () => {
         <Head title="Log in" />
 
         <template #footer>
-            Don't have an account? 
-            <Link :href="route('register')" class="text-primary hover:text-primary-end transition-colors">
-                Sign up
+            <!-- Backstage users are created manually, no self-registration -->
+            <Link :href="route('quickdrop.login')" class="text-primary hover:text-primary-end transition-colors">
+                Go to QuickDrop Login
             </Link>
         </template>
 

@@ -102,7 +102,6 @@ const submit = async () => {
                     try {
                         securelyStoreKey(storageKey, clientEncryptionKey);
                     } catch (error) {
-                        console.error('Failed to store encryption key:', error);
                     }
                     encryptionKey.value = clientEncryptionKey;
                 }
@@ -126,7 +125,6 @@ const copyToClipboard = async (text) => {
         copySuccess.value = true;
         setTimeout(() => copySuccess.value = false, 2000);
     } catch (err) {
-        console.error('Failed to copy to clipboard');
     }
 };
 

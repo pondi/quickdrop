@@ -20,7 +20,7 @@ class ShareAnalyticsService
     {
         try {
             $isOwner = Auth::guard('quickdrop')->check() && 
-                      Auth::guard('quickdrop')->id() === $uploadRequest->requesting_user_id;
+                      Auth::guard('quickdrop')->id() === $uploadRequest->quickdrop_user_id;
             
             $userAgent = $request->userAgent();
             $deviceInfo = QuickDropView::parseUserAgent($userAgent);
@@ -31,7 +31,7 @@ class ShareAnalyticsService
                 'ip_address' => $request->ip(),
                 'user_agent' => $userAgent,
                 'referer' => $request->header('referer'),
-                'country' => null, // Would need GeoIP service
+                'country' => null,
                 'region' => null,
                 'city' => null,
                 'device_type' => $deviceInfo['device_type'],

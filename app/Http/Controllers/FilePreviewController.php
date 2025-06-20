@@ -10,6 +10,18 @@ use Illuminate\Support\Facades\Response;
 
 class FilePreviewController extends Controller
 {
+    // Wrapper method for test compatibility
+    public function previewById(Request $request, string $requestId, int $fileId)
+    {
+        // Get the upload request
+        $uploadRequest = UploadRequest::where('unique_request_id', $requestId)->firstOrFail();
+        
+        // Get the file by ID
+        $file = $uploadRequest->uploadObjects()->findOrFail($fileId);
+        
+        // Call the existing preview method with the file's unique_id
+        return $this->preview($request, $requestId, $file->unique_id);
+    }
 
     public function preview(Request $request, $requestId, $fileUuid)
     {

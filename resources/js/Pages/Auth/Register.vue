@@ -75,7 +75,7 @@ const submit = () => {
 
         <template #footer>
             Already have an account? 
-            <Link :href="route('login')" class="text-primary hover:text-primary-end transition-colors">
+            <Link :href="route('backstage.login')" class="text-primary hover:text-primary-end transition-colors">
                 Sign in
             </Link>
         </template>

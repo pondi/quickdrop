@@ -49,7 +49,6 @@ export function useFileUploadEnhanced(uploadRequest, encryptionKeyGetter, initia
             for (const fileData of pendingFiles.value) {
                 if (fileData.uploading) continue;
                 if (fileData.isHashDuplicate) {
-                    console.log(`Skipping duplicate file: ${fileData.name}`);
                     removeFile(fileData.progressId);
                     continue;
                 }
@@ -76,7 +75,6 @@ export function useFileUploadEnhanced(uploadRequest, encryptionKeyGetter, initia
 
             pendingFiles.value = [];
         } catch (error) {
-            console.error('Upload error:', error);
         } finally {
             isUploading.value = false;
         }
@@ -95,7 +93,6 @@ export function useFileUploadEnhanced(uploadRequest, encryptionKeyGetter, initia
                 });
                 fileData.encryptedMetadata = result.metadata;
             } catch (error) {
-                console.error('Encryption failed:', error);
                 markError(fileData.progressId, 'Encryption failed');
                 throw error;
             }
@@ -188,7 +185,6 @@ export function useFileUploadEnhanced(uploadRequest, encryptionKeyGetter, initia
         try {
             fileData.hash = await calculateFileHash(uploadFile.file);
         } catch (error) {
-            console.error('Failed to calculate file hash:', error);
         }
 
         // Add back to pending queue and upload

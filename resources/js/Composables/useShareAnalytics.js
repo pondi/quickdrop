@@ -49,7 +49,6 @@ export function useShareAnalytics(quickDropId) {
         preserveScroll: true
       })
     } catch (err) {
-      console.error('Failed to track view:', err)
     }
   }
 
@@ -72,7 +71,6 @@ export function useShareAnalytics(quickDropId) {
         preserveScroll: true
       })
     } catch (err) {
-      console.error('Failed to track download:', err)
     }
   }
 
@@ -145,7 +143,6 @@ export function useShareAnalytics(quickDropId) {
         format: format
       })
     } catch (err) {
-      console.error('Failed to export analytics:', err)
     }
   }
 

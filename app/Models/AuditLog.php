@@ -55,14 +55,30 @@ class AuditLog extends Model
     const CATEGORY_SYSTEM = 'system';
 
     /**
-     * Get the user that performed the action
+     * Get the admin user that performed the action
      */
-    public function user()
+    public function adminUser()
+    {
+        return $this->belongsTo(User::class, 'user_id')->where('user_type', 'users');
+    }
+
+    /**
+     * Get the quickdrop user that performed the action
+     */
+    public function quickDropUser()
+    {
+        return $this->belongsTo(QuickDropUser::class, 'user_id')->where('user_type', 'quickdrop_users');
+    }
+    
+    /**
+     * Get the user that performed the action (generic accessor)
+     */
+    public function getUser()
     {
         if ($this->user_type === 'users') {
-            return $this->belongsTo(User::class, 'user_id');
+            return $this->adminUser;
         } elseif ($this->user_type === 'quickdrop_users') {
-            return $this->belongsTo(QuickDropUser::class, 'user_id');
+            return $this->quickDropUser;
         }
         
         return null;

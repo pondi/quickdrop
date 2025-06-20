@@ -64,7 +64,7 @@
             </Card>
 
             <div class="text-center">
-                <Link :href="route('login')" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
+                <Link :href="route('backstage.login')" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
                     Are you an administrator? Sign in here →
                 </Link>
             </div>

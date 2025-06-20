@@ -95,31 +95,8 @@ const props = defineProps({
 // Define emits
 defineEmits(['download-file', 'download-all']);
 
-// Debug logging
-if (import.meta.env.DEV) {
-    onMounted(() => {
-        console.log('FileList mounted:', {
-            files: props.files,
-            canDownload: props.canDownload,
-            canDelete: props.canDelete
-        });
-    });
-
-    watch([() => props.files, () => props.canDownload], ([newFiles, newCanDownload]) => {
-        console.log('FileList props changed:', {
-            filesLength: newFiles.length,
-            canDownload: newCanDownload
-        });
-    }, { immediate: true, deep: true });
-}
 
 const canShowBulkDownload = computed(() => {
-    // Debug log for visibility
-    console.log('canShowBulkDownload computed:', {
-        canDownload: props.canDownload,
-        filesLength: props.files.length,
-        hasEncryptedFiles: props.files.some(file => file.is_encrypted)
-    });
     
     return props.canDownload && 
            props.files.length > 0 && 
@@ -128,20 +105,6 @@ const canShowBulkDownload = computed(() => {
 
 const { files } = toRefs(props);
 
-if (import.meta.env.DEV) {
-    onMounted(() => {
-        console.log('FileList mounted with files:', files.value);
-    });
-
-    watch(files, (newFiles, oldFiles) => {
-        console.log('FileList files updated:', {
-            newFiles,
-            oldFiles,
-            length: newFiles?.length,
-            oldLength: oldFiles?.length
-        });
-    }, { deep: true });
-}
 
 const getFileIcon = (mimeType) => {
     if (mimeType.startsWith('image/')) return PhotoIcon;

@@ -25,6 +25,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'quickdrop.auth'       => \App\Http\Middleware\QuickDropAuth::class,
             'audit'                => \App\Http\Middleware\AuditMiddleware::class,
         ]);
+        
+        // Configure redirect for guests
+        $middleware->redirectGuestsTo(function ($request) {
+            // If accessing backstage routes, redirect to backstage login
+            if ($request->is('backstage/*') || $request->is('backstage')) {
+                return route('backstage.login');
+            }
+            
+            // For all other routes, redirect to QuickDrop login
+            return route('quickdrop.login');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

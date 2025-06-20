@@ -30,7 +30,6 @@ export function useFileUpload(uploadRequest, encryptionKeyGetter, initialFiles =
             for (const fileData of pendingFiles.value) {
                 if (fileData.uploading) continue;
                 if (fileData.isHashDuplicate) {
-                    import.meta.env.DEV && console.log(`Skipping duplicate file: ${fileData.name}`);
                     continue;
                 }
 
@@ -54,7 +53,6 @@ export function useFileUpload(uploadRequest, encryptionKeyGetter, initialFiles =
                 }
             }
         } catch (error) {
-            console.error('Upload error:', error);
         } finally {
             isUploading.value = false;
             pendingFiles.value = pendingFiles.value.filter(f => !f.uploading && !f.isHashDuplicate);
@@ -77,9 +75,7 @@ export function useFileUpload(uploadRequest, encryptionKeyGetter, initialFiles =
             try {
                 // Encrypt the file before upload
                 fileToUpload = await encryptFile(fileData.file, key);
-                console.log('File encrypted successfully:', fileData.name);
             } catch (error) {
-                console.error('Encryption error:', error);
                 fileData.error = 'Failed to encrypt file';
                 return;
             }
@@ -103,13 +99,11 @@ export function useFileUpload(uploadRequest, encryptionKeyGetter, initialFiles =
                     onProgress: (progress) => {
                         if (fileData.uploading) {
                             fileData.progress = Math.round(progress.percentage);
-                            import.meta.env.DEV && console.log(`Upload progress for ${fileData.name}: ${fileData.progress}%`);
                         }
                     },
                     onSuccess: (page) => {
                         if (!fileData.uploading) return;
 
-                        import.meta.env.DEV && console.log('Upload success response:', page);
                         fileData.progress = 100;
                         
                         if (fileElement) {
@@ -150,7 +144,6 @@ export function useFileUpload(uploadRequest, encryptionKeyGetter, initialFiles =
                                     }
                                 }, 500);
                             } else {
-                                console.error('No file data in response:', page);
                                 fileData.error = 'Upload failed - please try again';
                             }
                             resolve(page);
@@ -164,7 +157,6 @@ export function useFileUpload(uploadRequest, encryptionKeyGetter, initialFiles =
                             return;
                         }
 
-                        console.error('Upload error:', errors);
                         fileData.error = errors.error || 'Upload failed';
                         fileData.uploading = false;
                         fileData.progress = undefined;

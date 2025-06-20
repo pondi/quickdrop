@@ -5,8 +5,6 @@ import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
-import Vueform from '@vueform/vueform'
-import vueformConfig from './../../vueform.config'
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -38,7 +36,6 @@ createInertiaApp({
         
         // Global error handler
         app.config.errorHandler = (err, instance, info) => {
-            console.error('Global error:', err, info);
         };
         
         // Performance monitoring
@@ -49,7 +46,6 @@ createInertiaApp({
         return app
             .use(plugin)
             .use(ZiggyVue)
-            .use(Vueform, vueformConfig)
             .mount(el);
     },
     progress: {

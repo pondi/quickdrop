@@ -313,7 +313,6 @@ async function loadAnalytics() {
     })
     analytics.value = response.data
   } catch (error) {
-    console.error('Failed to load analytics:', error)
   } finally {
     isLoading.value = false
   }

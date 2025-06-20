@@ -124,7 +124,6 @@ const copyToClipboard = async () => {
       copied.value = false
     }, 2000)
   } catch (err) {
-    console.error('Failed to copy:', err)
   }
 }
 

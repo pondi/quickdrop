@@ -72,21 +72,18 @@ class BackstageUsersController extends Controller
      */
     public function show(User $user)
     {
-        $user->load(['uploadRequests' => function ($query) {
-            $query->latest()->limit(10);
-        }]);
-
+        // Admin users don't create QuickDrops
         $stats = [
-            'total_uploads' => $user->uploadObjects()->count(),
-            'total_requests' => $user->uploadRequests()->count(),
-            'storage_used' => $user->uploadObjects()->sum('file_size'),
-            'last_login' => $user->last_login_at,
+            'total_uploads' => 0,
+            'total_requests' => 0,
+            'storage_used' => 0,
+            'last_login' => $user->last_login_at ?? null,
         ];
 
         return Inertia::render('Backstage/Users/Show', [
             'user' => $user,
             'stats' => $stats,
-            'recentRequests' => $user->uploadRequests,
+            'recentRequests' => [],
         ]);
     }
 
@@ -133,7 +130,7 @@ class BackstageUsersController extends Controller
      */
     public function destroy(User $user)
     {
-        if ($user->id === auth()->id()) {
+        if ($user->id === auth()->guard('web')->id()) {
             return back()->withErrors(['error' => 'You cannot delete your own account.']);
         }
 

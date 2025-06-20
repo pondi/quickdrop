@@ -39,12 +39,6 @@ class AuthenticatedSessionController extends Controller
         // Get the authenticated user
         $user = Auth::user();
         
-        // Log for debugging
-        \Log::info('User logged in', [
-            'user_id' => $user->id ?? null,
-            'email' => $user->email ?? null,
-            'is_admin' => $user->is_admin ?? null,
-        ]);
 
         // Redirect backstage users to backstage dashboard
         if ($user && $user->is_admin) {

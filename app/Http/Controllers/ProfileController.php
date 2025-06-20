@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\ProfileUpdateRequest;
+use App\Http\Requests\QuickDropProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,15 +35,16 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(QuickDropProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = auth()->guard('quickdrop')->user();
+        $user->fill($request->validated());
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
-        $request->user()->save();
+        $user->save();
 
         return Redirect::route('profile.edit');
     }
@@ -71,13 +72,14 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // QuickDrop users don't have passwords, so we just need confirmation
         $request->validate([
-            'password' => ['required', 'current_password'],
+            'confirm_deletion' => ['required', 'accepted'],
         ]);
 
-        $user = $request->user();
+        $user = auth()->guard('quickdrop')->user();
 
-        Auth::logout();
+        Auth::guard('quickdrop')->logout();
 
         $user->delete();
 

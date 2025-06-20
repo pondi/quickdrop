@@ -130,7 +130,6 @@ const handleFileSelect = (e) => {
 const processFiles = (newFiles) => {
     const validFiles = newFiles.filter(file => {
         if (props.maxSize && file.size > props.maxSize) {
-            console.warn(`File ${file.name} exceeds maximum size`)
             return false
         }
         return true

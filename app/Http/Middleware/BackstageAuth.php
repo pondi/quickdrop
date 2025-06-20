@@ -12,11 +12,11 @@ class BackstageAuth
     {
         // Console uses Laravel's built-in auth system
         // All users in the 'users' table are administrators
-        if (!auth()->check()) {
-            return redirect()->route('login');
+        if (!auth()->guard('web')->check()) {
+            return redirect()->route('backstage.login');
         }
 
-        $user = auth()->user();
+        $user = auth()->guard('web')->user();
         
         // Verify this is an admin user (all users in 'users' table should have is_admin = true)
         // This is a safety check - in the new architecture, only admins should exist in this table

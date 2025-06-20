@@ -201,20 +201,6 @@ const allowedTypesText = computed(() => {
 });
 
 const checkDuplicateStatus = (newFile) => {
-    if (import.meta.env.DEV) {
-        console.log('Checking duplicate status for:', {
-            fileName: newFile.name,
-            file_hash: newFile.file_hash,
-            requestId: props.uploadRequest.id
-        });
-
-        // Log all completed files for debugging
-        console.log('All completed files:', props.completedFiles.map(f => ({
-            name: f.name,
-            file_hash: f.file_hash,
-            request_id: f.request_id
-        })));
-    }
 
     // Initialize result object
     const result = {
@@ -229,45 +215,14 @@ const checkDuplicateStatus = (newFile) => {
         const nameMatch = f.name === newFile.name;
         const requestMatch = String(f.request_id) === String(props.uploadRequest.id);
         
-        if (import.meta.env.DEV) {
-            console.log('Checking file:', {
-                fileName: f.name,
-                newFileName: newFile.name,
-                nameMatch,
-                fileRequestId: f.request_id,
-                currentRequestId: props.uploadRequest.id,
-                requestMatch,
-                file_hash: f.file_hash
-            });
-        }
         
         return nameMatch && requestMatch;
     });
 
-    if (import.meta.env.DEV && filelistMatches.length > 0) {
-        console.log('Found filelist matches:', {
-            fileName: newFile.name,
-            matches: filelistMatches.map(f => ({
-                name: f.name,
-                file_hash: f.file_hash,
-                request_id: f.request_id,
-                version: f.version
-            }))
-        });
-    }
 
     // Check for exact duplicates in filelist
     const exactDuplicateInFilelist = filelistMatches.some(f => {
         const isMatch = f.file_hash === newFile.file_hash;
-        if (import.meta.env.DEV) {
-            console.log('Checking hash match:', {
-                fileName: f.name,
-                existingHash: f.file_hash,
-                newHash: newFile.file_hash,
-                isMatch,
-                requestId: f.request_id
-            });
-        }
         return isMatch;
     });
 
@@ -276,12 +231,6 @@ const checkDuplicateStatus = (newFile) => {
         result.isExactDuplicate = true;
         result.message = 'Exact duplicate file already exists in uploaded files - will be skipped';
         
-        if (import.meta.env.DEV) {
-            console.log('Found exact duplicate in filelist:', {
-                fileName: newFile.name,
-                file_hash: newFile.file_hash
-            });
-        }
         return result;
     }
 
@@ -299,28 +248,10 @@ const checkDuplicateStatus = (newFile) => {
                !f.error; // Don't consider files with errors
     });
 
-    if (import.meta.env.DEV) {
-        console.log('Checking dropzone matches:', {
-            fileName: newFile.name,
-            currentIndex,
-            dropzoneMatches: dropzoneMatches.map(f => ({
-                name: f.name,
-                index: selectedFiles.value.indexOf(f),
-                file_hash: f.file_hash
-            }))
-        });
-    }
 
     // Check for exact duplicates in dropzone
     const exactDuplicateInDropzone = dropzoneMatches.some(f => {
         const isMatch = f.file_hash === newFile.file_hash;
-        if (isMatch && import.meta.env.DEV) {
-            console.log('Found exact match in dropzone:', {
-                fileName: newFile.name,
-                file_hash: newFile.file_hash,
-                matching_file_hash: f.file_hash
-            });
-        }
         return isMatch;
     });
 
@@ -329,12 +260,6 @@ const checkDuplicateStatus = (newFile) => {
         result.isExactDuplicate = true;
         result.message = 'Exact duplicate file is already in the upload list - will be skipped';
         
-        if (import.meta.env.DEV) {
-            console.log('Found exact duplicate in dropzone:', {
-                fileName: newFile.name,
-                file_hash: newFile.file_hash
-            });
-        }
         return result;
     }
 
@@ -348,19 +273,9 @@ const checkDuplicateStatus = (newFile) => {
         result.nextVersion = allVersions.length > 0 ? Math.max(...allVersions) + 1 : 2;
         result.message = `Name duplicate - will be saved as v${result.nextVersion}`;
 
-        if (import.meta.env.DEV) {
-            console.log('Found name duplicate:', {
-                fileName: newFile.name,
-                nextVersion: result.nextVersion,
-                existingVersions: allVersions
-            });
-        }
         return result;
     }
 
-    if (import.meta.env.DEV) {
-        console.log('No duplicates found for:', newFile.name);
-    }
 
     return result;
 };
@@ -381,11 +296,6 @@ const handleFileSelect = (event) => {
 };
 
 const addFiles = async (files) => {
-    console.log('Adding files:', {
-        fileCount: files.length,
-        currentRequestId: props.uploadRequest.id,
-        existingFiles: selectedFiles.value.length
-    });
 
     const validFiles = files.filter(file => {
         // Check file size
@@ -427,12 +337,6 @@ const addFiles = async (files) => {
             // Calculate hash first
             fileData.file_hash = await calculateFileHash(fileData.file);
             
-            if (import.meta.env.DEV) {
-                console.log('Calculated hash for file:', {
-                    fileName: fileData.name,
-                    file_hash: fileData.file_hash
-                });
-            }
             
             // Check duplicate status
             const duplicateStatus = checkDuplicateStatus(fileData);
@@ -444,7 +348,6 @@ const addFiles = async (files) => {
             fileData.duplicateType = duplicateStatus.isDuplicate && !duplicateStatus.isExactDuplicate ? 'name' : null;
             
         } catch (error) {
-            console.error('Error processing file:', error);
             fileData.error = 'Error processing file';
         } finally {
             fileData.isDuplicateChecking = false;
@@ -498,15 +401,6 @@ const allFilesUploaded = computed(() => {
 
 // Watch for completed files to update UI
 watch(() => props.completedFiles, (newFiles) => {
-    if (import.meta.env.DEV) {
-        console.log('Completed files updated:', {
-            files: newFiles.map(f => ({
-                name: f.name,
-                request_id: f.request_id
-            })),
-            currentRequestId: props.uploadRequest.id
-        });
-    }
 }, { immediate: true, deep: true });
 
 // Watch for completed uploads to remove files

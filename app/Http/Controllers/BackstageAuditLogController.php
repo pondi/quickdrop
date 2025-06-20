@@ -14,7 +14,7 @@ class BackstageAuditLogController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = $request->only(['search', 'event_type', 'event_category', 'date_from', 'date_to']);
+        $filters = $request->only(['search', 'event_type', 'event_category', 'date_from', 'date_to', 'user_type']);
         
         $logs = AuditService::getFilteredLogs(
             search: $filters['search'] ?? null,
@@ -22,7 +22,9 @@ class BackstageAuditLogController extends Controller
             eventCategory: $filters['event_category'] ?? null,
             dateFrom: $filters['date_from'] ?? null,
             dateTo: $filters['date_to'] ?? null,
-            perPage: $request->get('per_page', 50)
+            userId: null,
+            userType: $filters['user_type'] ?? null,
+            perPage: $request->get('per_page', 25)
         );
 
         // Transform logs for frontend

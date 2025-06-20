@@ -29,20 +29,38 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        // Check for QuickDrop user first, then console user
-        $quickDropUser = auth()->guard('quickdrop')->user();
-        $consoleUser = auth()->guard('web')->user();
+        // Determine which guard to use based on the route
+        $isBackstageRoute = $request->is('backstage/*') || $request->is('backstage');
+        
+        if ($isBackstageRoute) {
+            // For backstage routes, only use web guard
+            $user = auth()->guard('web')->user();
+            $userData = $user ? array_merge($user->toArray(), [
+                'is_quickdrop_user' => false,
+                'is_admin' => $user->is_admin ?? false,
+            ]) : null;
+        } else {
+            // For other routes, check quickdrop guard first
+            $quickDropUser = auth()->guard('quickdrop')->user();
+            if ($quickDropUser) {
+                $userData = array_merge($quickDropUser->toArray(), [
+                    'is_quickdrop_user' => true,
+                    'is_admin' => false,
+                ]);
+            } else {
+                // Fall back to web guard if no quickdrop user
+                $webUser = auth()->guard('web')->user();
+                $userData = $webUser ? array_merge($webUser->toArray(), [
+                    'is_quickdrop_user' => false,
+                    'is_admin' => $webUser->is_admin ?? false,
+                ]) : null;
+            }
+        }
         
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $quickDropUser ? array_merge($quickDropUser->toArray(), [
-                    'is_quickdrop_user' => true,
-                    'is_admin' => false,
-                ]) : ($consoleUser ? array_merge($consoleUser->toArray(), [
-                    'is_quickdrop_user' => false,
-                    'is_admin' => $consoleUser->is_admin ?? false,
-                ]) : null),
+                'user' => $userData,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
